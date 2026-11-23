@@ -176,9 +176,32 @@ export function confirmDialog({ title, body, extra = null, ok = 'Тийм', canc
 
 // Өдөр: хуучин хувилбарт зөвхөн бичвэр байсан, одоо {theme, files, ratios}.
 export function normDay(d) {
-  if (!d) return { theme: '', files: [], ratios: [] };
-  if (typeof d === 'string') return { theme: d, files: [], ratios: [] };
-  return { theme: d.theme || '', files: d.files || [], ratios: d.ratios || [] };
+  if (!d) return { theme: '', date: '', files: [], ratios: [] };
+  if (typeof d === 'string') return { theme: d, date: '', files: [], ratios: [] };
+  return { theme: d.theme || '', date: d.date || '', files: d.files || [], ratios: d.ratios || [] };
+}
+
+// Өдрийн огноо 'YYYY-MM-DD' хэлбэрээр хадгалагдана.
+const WEEKDAYS = ['Ням', 'Даваа', 'Мягмар', 'Лхагва', 'Пүрэв', 'Баасан', 'Бямба'];
+export function parseDay(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || '');
+  if (!m) return null;
+  const y = +m[1];
+  const mo = +m[2];
+  const d = +m[3];
+  return { y, mo, d, wd: WEEKDAYS[new Date(y, mo - 1, d).getDay()] };
+}
+export function fmtDay(s) {
+  const p = parseDay(s);
+  return p ? `${p.y} оны ${p.mo}-р сарын ${p.d}, ${p.wd} гараг` : '';
+}
+export function isoDay(date) {
+  const z = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${z(date.getMonth() + 1)}-${z(date.getDate())}`;
+}
+export function nextIsoDay(s) {
+  const p = parseDay(s);
+  return isoDay(p ? new Date(p.y, p.mo - 1, p.d + 1) : new Date());
 }
 
 export function initial(s) {

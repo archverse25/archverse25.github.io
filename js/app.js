@@ -1,10 +1,10 @@
 import {
-  h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay,
+  h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay, parseDay, fmtDay,
   toMillis, errText,
-} from './ui.js?v=12';
-import * as fb from './fb.js?v=12';
-import { adminContent, startAdminSubs } from './admin.js?v=12';
-import { fileToAvatar, thumbFromDataUrl } from './media.js?v=12';
+} from './ui.js?v=13';
+import * as fb from './fb.js?v=13';
+import { adminContent, startAdminSubs } from './admin.js?v=13';
+import { fileToAvatar, thumbFromDataUrl } from './media.js?v=13';
 
 // ---------- Төлөв ----------
 const S = {
@@ -706,7 +706,7 @@ function adFigure(a) {
   if (!files.length) return fig;
   const ratio = (a.ratios && a.ratios[0]) || 1.414;
   const img = h('img', { class: 'ad-img', alt: 'Зар', style: { aspectRatio: `1 / ${ratio}` } });
-  fig.append(h('button', { class: 'ad-page', type: 'button', 'aria-label': 'Зарыг томруулж харах', onclick: () => openAd(a) },
+  fig.append(h('button', { class: 'ad-page', type: 'button', 'aria-label': a.title ? `${a.title}: зургийг томруулж харах` : 'Зарыг томруулж харах', onclick: () => openAd(a) },
     img,
     files.length > 1 ? h('span', { class: 'ad-count' }, `${files.length} хуудас`) : null));
   lazyLoad(img, files[0]);
@@ -720,7 +720,7 @@ function openAd(a) {
     else fb.loadFile(id).then((d) => d && (img.src = d));
     return img;
   });
-  openDialog(h('div', { class: 'lightbox' }, pages), { title: 'Зар', wide: true });
+  openDialog(h('div', { class: 'lightbox' }, pages), { title: a.title || 'Зар', wide: true });
 }
 
 function announcementsSection() {
@@ -840,10 +840,30 @@ function wrapped(key, card, label, golden = false) {
   return box;
 }
 
-function dimString(n, cur) {
-  return h('div', { class: 'dimstring', 'aria-hidden': 'true' },
-    Array.from({ length: n }, (_, i) =>
-      h('span', { class: 'dim-seg' + (i < cur ? ' past' : '') + (i === cur ? ' current' : '') }, h('span', { class: 'dim-num' }, String(i + 1)))));
+// Өдрүүдийн шугам: өдөр бүрийн дугаар ба огноо.
+function dimString(days, cur) {
+  return h('ol', { class: 'dimstring', 'aria-label': 'Монитагийн өдрүүд' },
+    days.map((d, i) => {
+      const p = parseDay(d.date);
+      return h('li', {
+        class: 'dim-seg' + (i < cur ? ' past' : '') + (i === cur ? ' current' : ''),
+        'aria-current': i === cur ? 'step' : null,
+      },
+      h('span', { class: 'dim-num' }, String(i + 1), h('span', { class: 'dim-num-word' }, '-р өдөр')),
+      h('span', { class: 'dim-bar' }),
+      p ? h('span', { class: 'dim-date' }, `${p.mo}/${p.d}`) : null);
+    }));
+}
+
+// Огнооны хавтан: он, сар, өдөр, гараг.
+function dateTile(iso) {
+  const p = parseDay(iso);
+  if (!p) return null;
+  return h('div', { class: 'date-tile', 'aria-hidden': 'true' },
+    h('span', { class: 'dt-year' }, `${p.y} он`),
+    h('span', { class: 'dt-month' }, `${p.mo}-р сар`),
+    h('span', { class: 'dt-day' }, String(p.d)),
+    h('span', { class: 'dt-week' }, p.wd));
 }
 
 function daySection(c) {
@@ -851,16 +871,20 @@ function daySection(c) {
   const cur = Math.min(c.currentDay || 0, Math.max(days.length - 1, 0));
   const day = days[cur] || normDay(null);
   const theme = day.theme.trim();
-  let label = 'Монита явагдаж байна';
-  if (c.finalDay) label = 'Сүүлийн өдөр';
-  else if (days.length) label = theme ? `${cur + 1}-р өдрийн сэдэв` : `${cur + 1}-р өдөр`;
-  return h('section', { class: 'day' + (c.finalDay ? ' final' : '') },
-    days.length > 1 ? dimString(days.length, cur) : null,
-    h('p', { class: 'day-label' }, label),
-    theme ? h('p', { class: 'day-theme' }, theme) : null,
-    day.files.length
-      ? h('div', { class: 'day-media' }, keep('daymedia:' + day.files[0], () => adFigure({ id: 'day-' + day.files[0], files: day.files, ratios: day.ratios })))
-      : null);
+  const label = days.length ? `${cur + 1}-р өдрийн сэдэв` : 'Монита явагдаж байна';
+  const full = fmtDay(day.date);
+  return h('section', { class: 'day panel' + (c.finalDay ? ' final' : '') + (day.files.length ? ' has-media' : '') + (parseDay(day.date) ? ' has-date' : '') },
+    days.length > 1 ? dimString(days, cur) : null,
+    h('div', { class: 'day-body' },
+      dateTile(day.date),
+      h('div', { class: 'day-text' },
+        h('p', { class: 'day-label' }, label, c.finalDay ? h('span', { class: 'final-pill' }, 'Сүүлийн өдөр') : null),
+        theme ? h('p', { class: 'day-theme' }, theme) : null,
+        full ? h('p', { class: 'day-date' }, h('span', { class: 'sr-only' }, 'Огноо: '), full) : null),
+      day.files.length
+        ? h('div', { class: 'day-media' }, keep('daymedia:' + day.files[0], () =>
+          adFigure({ id: 'day-' + day.files[0], files: day.files, ratios: day.ratios, title: theme || label })))
+        : null));
 }
 
 function waiting() {
@@ -1087,7 +1111,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=12'));
+    ({ AVATARS: list } = await import('./avatars.js?v=13'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;

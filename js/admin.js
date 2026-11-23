@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay } from './ui.js?v=12';
-import * as fb from './fb.js?v=12';
-import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=12';
-import { fileToPages } from './media.js?v=12';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay } from './ui.js?v=13';
+import * as fb from './fb.js?v=13';
+import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=13';
+import { fileToPages } from './media.js?v=13';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
@@ -158,7 +158,7 @@ async function exportExcel(ctx, btn) {
   if (!users.length) return toast('Оролцогч алга байна.');
   btn.disabled = true;
   try {
-    const XLSX = await import('../vendor/xlsx.js?v=12');
+    const XLSX = await import('../vendor/xlsx.js?v=13');
     const byId = byIdMap(S);
     const assign = S.admin.assign;
     const active = S.config.state === 'active';
@@ -507,9 +507,15 @@ function daysEditor(ctx) {
         items[i] = { ...items[i], theme: inp.value };
         markDirty();
       });
+      const dateInp = h('input', { class: 'input input-date', type: 'date', value: d.date, 'aria-label': `${i + 1}-р өдрийн огноо` });
+      dateInp.addEventListener('input', () => {
+        items[i] = { ...items[i], date: dateInp.value };
+        markDirty();
+      });
       const isCur = S.config.state === 'active' && cur === i;
       return h('li', { class: 'day-row' + (isCur ? ' current' : '') },
         h('span', { class: 'day-num' }, `${i + 1}-р өдөр`),
+        dateInp,
         inp,
         h('div', { class: 'day-actions' },
           isCur
@@ -529,7 +535,7 @@ function daysEditor(ctx) {
   }
 
   async function save(switchTo, message) {
-    const days = items.map((d) => ({ theme: d.theme.trim(), files: d.files, ratios: d.ratios }));
+    const days = items.map((d) => ({ theme: d.theme.trim(), date: d.date || '', files: d.files, ratios: d.ratios }));
     let currentDay = switchTo !== undefined ? switchTo : S.config.currentDay || 0;
     if (currentDay >= days.length) currentDay = Math.max(0, days.length - 1);
     saveBtn.disabled = true;
@@ -544,10 +550,12 @@ function daysEditor(ctx) {
   }
 
   addBtn.addEventListener('click', () => {
-    items.push({ theme: '', files: [], ratios: [] });
+    // Огноог өмнөх өдрийн дараагийн өдрөөр (эхний өдөр бол өнөөдрөөр) бөглөнө.
+    const prev = items.length ? items[items.length - 1].date : '';
+    items.push({ theme: '', date: nextIsoDay(prev), files: [], ratios: [] });
     markDirty();
     draw();
-    const inputs = list.querySelectorAll('input.input');
+    const inputs = list.querySelectorAll('input.input:not(.input-date)');
     inputs[inputs.length - 1] && inputs[inputs.length - 1].focus();
   });
   saveBtn.addEventListener('click', () => save());

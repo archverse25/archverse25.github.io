@@ -328,9 +328,15 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 
 /* ---------- Өдөр, сэдэв ---------- */
 .day { display: flex; flex-direction: column; gap: 6px; }
-.day-label { font: 400 14px var(--display); letter-spacing: .08em; color: var(--cyan); }
+.day.panel { gap: 20px; }
+.day-body { display: grid; grid-template-columns: 1fr; gap: 16px 18px; align-items: center; }
+.day.has-date .day-body { grid-template-columns: auto 1fr; }
+.day-body .day-media { grid-column: 1 / -1; }
+.day-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.day-label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font: 400 14px var(--display); letter-spacing: .08em; color: var(--cyan); }
+.final-pill { font: 400 12px var(--display); letter-spacing: .04em; padding: 4px 10px; border-radius: 999px; color: var(--bg); background: var(--gold-grad); }
 .day-theme {
-  font: 600 clamp(34px, 9vw, 58px)/1.06 var(--display);
+  font: 600 clamp(28px, 7.6vw, 56px)/1.06 var(--display);
   overflow-wrap: anywhere;
   background: linear-gradient(100deg, #A6FAFF 0%, #8FC2FF 35%, #C7A2FF 65%, #FF9EDB 88%, #FFD3B8 100%);
   -webkit-background-clip: text;
@@ -338,15 +344,47 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
   color: transparent;
   padding-bottom: 4px;
 }
-.day-media { margin-top: 10px; width: min(240px, 60vw); }
-.day-media-edit { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; grid-column: 1 / -1; }
-.day-media-edit .ad { width: 110px; }
-.dimstring { display: flex; gap: 6px; margin-bottom: 12px; padding-top: 20px; }
-.dim-seg { position: relative; flex: 1; height: 4px; border-radius: 4px; background: rgba(255, 255, 255, .18); }
-.dim-num { position: absolute; left: 0; top: -20px; font: 400 12px var(--display); color: var(--muted); }
-.dim-seg.past { background: rgba(255, 255, 255, .45); }
-.dim-seg.current { background: var(--iris); }
-.dim-seg.current .dim-num { color: var(--text); }
+.day-date { font-size: 14px; color: var(--muted); }
+/* Огнооны хавтан байгаа үед ижил мэдээллийг зөвхөн дэлгэц уншигчид үлдээнэ. */
+.day.has-date .day-date { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.day-media { width: min(100%, 240px); }
+
+/* Огнооны хавтан */
+.date-tile {
+  width: 92px; padding: 12px 8px 10px; border-radius: 18px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  background: linear-gradient(rgba(42, 20, 80, .9), rgba(42, 20, 80, .9)) padding-box, var(--iris) border-box;
+  border: 1px solid transparent;
+  box-shadow: 0 12px 30px rgba(10, 4, 30, .35);
+}
+.dt-year { font-size: 11px; color: var(--muted); letter-spacing: .04em; }
+.dt-month { font-size: 13px; color: var(--text); }
+.dt-day {
+  font: 600 44px/1 var(--brand); margin: 2px 0;
+  background: var(--iris); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.dt-week { font-size: 12px; color: var(--cyan); }
+
+/* Өдрүүдийн шугам */
+.dimstring { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; }
+.dim-seg { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.dim-num { font: 400 12px var(--display); color: var(--muted); white-space: nowrap; }
+.dim-num-word { display: none; }
+.dim-bar { height: 4px; border-radius: 4px; background: rgba(255, 255, 255, .18); }
+.dim-date { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.dim-seg.past .dim-bar { background: rgba(255, 255, 255, .45); }
+.dim-seg.current .dim-bar { background: var(--iris); }
+.dim-seg.current .dim-num, .dim-seg.current .dim-date { color: var(--text); }
+@media (min-width: 700px) {
+  .dim-num-word { display: inline; }
+}
+@media (min-width: 820px) {
+  .day.has-media .day-body { grid-template-columns: 1fr 260px; }
+  .day.has-media.has-date .day-body { grid-template-columns: auto 1fr 260px; }
+  .day-body .day-media { grid-column: auto; width: 100%; }
+  .date-tile { width: 116px; padding: 16px 10px 14px; }
+  .dt-day { font-size: 56px; }
+}
 
 /* ---------- Мэдээллийн карт ---------- */
 .tblock { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; overflow: hidden; }
@@ -576,13 +614,16 @@ select.input option { background: var(--bg-2); color: var(--text); }
 
 .status-line { font: 400 20px/1.25 var(--display); letter-spacing: .02em; }
 .days { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.day-media-edit { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; grid-column: 1 / -1; }
+.day-media-edit .ad { width: 110px; }
+.input-date { color-scheme: dark; }
 .day-row { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255, 255, 255, .03); }
 .day-row.current { border-color: var(--cyan); }
 .day-num { font: 400 14px var(--display); letter-spacing: .04em; }
 .day-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .day-current { font: 400 14px var(--display); color: var(--cyan); }
 @media (min-width: 720px) {
-  .day-row { grid-template-columns: 96px 1fr auto; align-items: center; }
+  .day-row { grid-template-columns: 84px 168px 1fr auto; align-items: center; }
   .day-actions { justify-content: flex-end; }
 }
 .detail-line { font-size: 15px; }
