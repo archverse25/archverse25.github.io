@@ -74,3 +74,26 @@ export async function fileToPages(file, onProgress) {
   }
   throw new Error('PDF эсвэл PNG файл сонгоно уу.');
 }
+
+// Профайл зураг: голоос нь дөрвөлжин тайрч, 360px болгоно.
+export async function fileToAvatar(file) {
+  const img = await loadImage(file);
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+  const side = Math.min(w, h);
+  const size = Math.min(360, side);
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+  ctx.drawImage(img, (w - side) / 2, (h - side) / 2, side, side, 0, 0, size, size);
+  let q = 0.85;
+  let data = canvas.toDataURL('image/jpeg', q);
+  while (data.length > 200000 && q > 0.45) {
+    q -= 0.1;
+    data = canvas.toDataURL('image/jpeg', q);
+  }
+  return data;
+}

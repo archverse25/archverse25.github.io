@@ -1,9 +1,10 @@
 import {
-  h, svg, icons, GIFT_MINI, HERO_ART, toast, openDialog, shortName, genderLabel, fmtPhone, fmtDate,
+  h, svg, icons, GIFT_MINI, HERO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial,
   toMillis, errText,
-} from './ui.js?v=2';
-import * as fb from './fb.js?v=2';
-import { adminContent, startAdminSubs } from './admin.js?v=2';
+} from './ui.js?v=3';
+import * as fb from './fb.js?v=3';
+import { adminContent, startAdminSubs } from './admin.js?v=3';
+import { fileToAvatar } from './media.js?v=3';
 
 // ---------- Төлөв ----------
 const S = {
@@ -19,6 +20,7 @@ const S = {
   giver: undefined,
   notifications: [],
   announcements: [],
+  photos: {},
   tab: tabFromHash(),
   editing: false,
   seenAtOpen: 0,
@@ -95,6 +97,8 @@ fb.onUser((user) => {
   if (!user) {
     stopAll('u:');
     stopAll('a:');
+    stopAll('ph:');
+    S.photos = {};
     Object.assign(S, {
       profile: undefined, isAdmin: undefined, config: undefined, assignment: undefined, targetId: undefined,
       target: undefined, giverId: undefined, giver: undefined, notifications: [],
@@ -132,6 +136,7 @@ fb.onUser((user) => {
       render();
     }, loud('config')));
   sub('u:notif', () => fb.watch.notifications(user.uid, onNotifications, loud('notifications')));
+  syncPhotos();
   render();
 });
 
@@ -161,6 +166,7 @@ function onConfig() {
     stop('u:assign');
     stop('u:target');
     Object.assign(S, { assignment: undefined, targetId: undefined, target: undefined });
+    syncPhotos();
   }
   if (active && c.finalDay) {
     if (!subs.has('u:givers')) {
@@ -177,6 +183,29 @@ function onConfig() {
     stop('u:givers');
     stop('u:giver');
     Object.assign(S, { giverId: undefined, giver: undefined });
+    syncPhotos();
+  }
+}
+
+// Профайл зураг: өөрийн, сонгосон хүний, сүүлийн өдөр намайг сонгосон хүний.
+function syncPhotos() {
+  const want = new Set([S.user && S.user.uid, S.targetId, S.giverId].filter(Boolean));
+  for (const k of [...subs.keys()]) {
+    if (k.startsWith('ph:') && !want.has(k.slice(3))) {
+      stop(k);
+      delete S.photos[k.slice(3)];
+    }
+  }
+  for (const uid of want) {
+    if (subs.has('ph:' + uid)) continue;
+    sub('ph:' + uid, () =>
+      fb.watch.photo(uid, (d) => {
+        S.photos[uid] = d;
+        render();
+      }, quiet(() => {
+        S.photos[uid] = null;
+        render();
+      })));
   }
 }
 
@@ -186,6 +215,7 @@ function onAssignment() {
   S.targetId = t;
   stop('u:target');
   S.target = t ? undefined : null;
+  syncPhotos();
   if (t) {
     sub('u:target', () =>
       fb.watch.user(t, (p) => {
@@ -203,6 +233,7 @@ function onGiver(id) {
   S.giverId = id;
   stop('u:giver');
   S.giver = id ? undefined : null;
+  syncPhotos();
   if (id) {
     sub('u:giver', () =>
       fb.watch.user(id, (p) => {
@@ -439,12 +470,14 @@ function lazyLoad(img, id) {
 
 function adFigure(a) {
   const fig = h('figure', { class: 'ad' });
-  (a.files || []).forEach((id, i) => {
-    const ratio = (a.ratios && a.ratios[i]) || 1.414;
-    const img = h('img', { class: 'ad-img', alt: `Зар${a.files.length > 1 ? `, ${i + 1}-р хуудас` : ''}`, style: { aspectRatio: `1 / ${ratio}` } });
-    fig.append(h('button', { class: 'ad-page', type: 'button', 'aria-label': 'Зарыг томруулж харах', onclick: () => openAd(a, i) }, img));
-    lazyLoad(img, id);
-  });
+  const files = a.files || [];
+  if (!files.length) return fig;
+  const ratio = (a.ratios && a.ratios[0]) || 1.414;
+  const img = h('img', { class: 'ad-img', alt: 'Зар', style: { aspectRatio: `1 / ${ratio}` } });
+  fig.append(h('button', { class: 'ad-page', type: 'button', 'aria-label': 'Зарыг томруулж харах', onclick: () => openAd(a) },
+    img,
+    files.length > 1 ? h('span', { class: 'ad-count' }, `${files.length} хуудас`) : null));
+  lazyLoad(img, files[0]);
   return fig;
 }
 
@@ -463,7 +496,7 @@ function announcementsSection() {
   if (!list.length) return null;
   return h('section', { class: 'ads' },
     h('h2', { class: 'h-section' }, 'Зар'),
-    h('div', { class: 'ads-grid' + (list.length > 1 ? ' multi' : '') }, list.map((a) => keep('ann:' + a.id, () => adFigure(a)))));
+    h('div', { class: 'ads-grid' }, list.map((a) => keep('ann:' + a.id, () => adFigure(a)))));
 }
 
 // ---------- Мэдээллийн хүснэгт (архитектур зургийн хүснэгт шиг) ----------
@@ -471,10 +504,16 @@ function cell(label, value, cls = '') {
   return h('div', { class: 'tb-cell ' + cls }, h('span', { class: 'tb-label' }, label), h('span', { class: 'tb-value' }, value));
 }
 
-function titleBlock(title, p, { golden = false, note = null, extra = null } = {}) {
+function avatar(p, photo, cls = 'avatar') {
+  if (photo) return h('img', { class: cls, src: photo, alt: '' });
+  return h('span', { class: cls + ' avatar-empty', 'aria-hidden': 'true' }, initial(p && p.firstName));
+}
+
+function titleBlock(title, p, { golden = false, note = null, extra = null, photo } = {}) {
+  const pic = photo !== undefined ? photo : S.photos[p.uid || p.id];
   return h('article', { class: 'tblock' + (golden ? ' golden' : '') },
     h('header', { class: 'tb-head' },
-      h('h2', { class: 'tb-title' }, title),
+      h('div', { class: 'tb-who' }, avatar(p, pic), h('h2', { class: 'tb-title' }, title)),
       golden ? h('span', { class: 'tb-badge' }, '✦ Алтан монита') : null),
     note ? h('p', { class: 'tb-note' }, note) : null,
     h('div', { class: 'tb-grid' },
@@ -495,7 +534,8 @@ function homeContent() {
     out.push(h('section', { class: 'intro' },
       h('h1', { class: 'h-display' }, 'Монита эхлээгүй байна'),
       h('p', { class: 'lead' }, 'Эхлэхээс өмнө профайлаа засах боломжтой.'),
-      h('a', { class: 'btn btn-ghost', href: '#profile' }, 'Профайл харах')));
+      h('a', { class: 'btn btn-ghost', href: '#profile' }, S.photos[S.user.uid] ? 'Профайл харах' : 'Профайл зураг оруулах')));
+    out.push(targetPlaceholder());
   } else {
     out.push(daySection(c));
     const goldenReveal = c.finalDay && S.giverId && S.giverId === S.targetId && S.target;
@@ -531,6 +571,13 @@ function daySection(c) {
 
 function waiting() {
   return h('div', { class: 'tblock skeleton', 'aria-busy': 'true' }, h('span', { class: 'sr-only' }, 'Ачаалж байна'));
+}
+
+function targetPlaceholder() {
+  return h('article', { class: 'tblock placeholder' },
+    h('header', { class: 'tb-head' },
+      h('div', { class: 'tb-who' }, svg(GIFT_MINI, 'avatar avatar-cube'), h('h2', { class: 'tb-title' }, 'Таны монита'))),
+    h('p', { class: 'tb-empty' }, 'Монита эхлэхэд таны монита энд харагдана.'));
 }
 
 function targetSection() {
@@ -571,6 +618,9 @@ function profileContent() {
     forget('form:profile');
   }
   const out = [h('header', { class: 'page-head' }, h('h1', { class: 'h-display' }, 'Профайл'))];
+  const pc = keep('photo:control', photoControl);
+  pc.sync();
+  out.push(pc);
   if (S.editing) out.push(keep('form:profile', () => profileForm(S.profile)));
   else {
     out.push(titleBlock('Миний мэдээлэл', S.profile));
@@ -590,6 +640,62 @@ function profileContent() {
     h('button', { class: 'btn btn-ghost', type: 'button', onclick: () => fb.logOut() }, svg(icons.logout), 'Гарах')));
   if (!S.isAdmin) out.push(keep('form:admin', adminCodeForm));
   return out;
+}
+
+function photoControl() {
+  const pic = h('div', { class: 'photo-pic' });
+  const input = h('input', { type: 'file', accept: 'image/*', class: 'sr-only', id: 'photo-file' });
+  const pickLabel = h('span', null, 'Зураг оруулах');
+  const pick = h('label', { class: 'btn btn-small', for: 'photo-file' }, svg(icons.upload), pickLabel);
+  const del = h('button', { class: 'btn btn-small btn-danger', type: 'button' }, 'Зураг устгах');
+  const status = h('p', { class: 'muted small', role: 'status' });
+  const actions = h('div', { class: 'actions' }, input, pick, del);
+  let last;
+
+  input.addEventListener('change', async () => {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    pick.classList.add('is-busy');
+    status.textContent = 'Зургийг бэлдэж байна…';
+    try {
+      const data = await fileToAvatar(file);
+      await fb.savePhoto(S.user.uid, data);
+      status.textContent = '';
+      toast('Профайл зураг хадгалагдлаа');
+    } catch (e) {
+      console.error(e);
+      status.textContent = '';
+      toast(errText(e, e.message || 'Зураг хадгалж чадсангүй'), 'error');
+    } finally {
+      pick.classList.remove('is-busy');
+    }
+  });
+  del.addEventListener('click', async () => {
+    const ok = await confirmDialog({ title: 'Профайл зургаа устгах уу?', ok: 'Устгах', danger: true });
+    if (!ok) return;
+    try {
+      await fb.deletePhoto(S.user.uid);
+      toast('Зураг устлаа');
+    } catch (e) {
+      toast(errText(e), 'error');
+    }
+  });
+
+  const el = h('section', { class: 'photo-control' }, pic, h('div', { class: 'photo-side' }, actions, status));
+  el.sync = () => {
+    const photo = S.photos[S.user.uid] || null;
+    const locked = S.config.state === 'active';
+    const key = [photo, locked, S.profile && S.profile.firstName].join('|');
+    if (key === last) return;
+    last = key;
+    pic.replaceChildren(avatar(S.profile, photo, 'avatar-lg'));
+    pickLabel.textContent = photo ? 'Зураг солих' : 'Зураг оруулах';
+    pick.style.display = locked ? 'none' : '';
+    del.style.display = locked || !photo ? 'none' : '';
+    status.textContent = locked ? 'Монита явагдаж байх үед зургаа солих боломжгүй.' : '';
+  };
+  return el;
 }
 
 export function normalizeCode(v) {

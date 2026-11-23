@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText } from './ui.js?v=2';
-import * as fb from './fb.js?v=2';
-import { makeMatching, validateMatching, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=2';
-import { fileToPages } from './media.js?v=2';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText } from './ui.js?v=3';
+import * as fb from './fb.js?v=3';
+import { makeMatching, validateMatching, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=3';
+import { fileToPages } from './media.js?v=3';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
@@ -135,15 +135,21 @@ function peopleSection(ctx) {
   return [stats, search, table];
 }
 
-function details(ctx, u) {
+async function details(ctx, u) {
   const { S } = ctx;
+  let photo = null;
+  try {
+    photo = await fb.getPhoto(u.id);
+  } catch (_) {
+    /* зураг алга */
+  }
   const byId = byIdMap(S);
   const assign = S.admin.assign;
   const t = byId[assign[u.id]];
   const giver = byId[giverOf(assign, u.id)];
   const golden = isGolden(assign, u.id);
   openDialog(h('div', { class: 'stack' },
-    ctx.titleBlock(fullName(u), u, { golden }),
+    ctx.titleBlock(fullName(u), u, { golden, photo }),
     h('p', { class: 'muted small' }, u.email || ''),
     t ? h('p', { class: 'detail-line' }, 'Сонгосон монита: ', h('strong', null, `${t.studentCode} ${shortName(t)}`)) : null,
     giver ? h('p', { class: 'detail-line' }, 'Түүнийг сонгосон: ', h('strong', null, `${giver.studentCode} ${shortName(giver)}`)) : null),

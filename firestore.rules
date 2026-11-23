@@ -67,6 +67,22 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Профайл зураг (мэдээлэлтэй адил хүмүүст харагдана)
+    match /photos/{uid} {
+      allow get: if signedIn() && (
+        me() == uid
+        || isAdmin()
+        || (isActive() && iChose(uid))
+        || (isFinal() && choseMe(uid))
+      );
+      allow create, update: if signedIn() && me() == uid && isOpen()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && request.resource.data.keys().hasOnly(['data', 'updatedAt'])
+        && request.resource.data.data is string
+        && request.resource.data.data.size() < 250000;
+      allow delete: if isAdmin() || (signedIn() && me() == uid && isOpen());
+    }
+
     // Оюутны код давхцахгүй
     match /studentCodes/{code} {
       allow get: if signedIn();

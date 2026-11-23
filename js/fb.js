@@ -4,9 +4,9 @@ import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, collection, query, where, onSnapshot, getDoc, getDocs, getDocFromCache, setDoc,
   deleteDoc, writeBatch, serverTimestamp, terminate, clearIndexedDbPersistence,
-} from '../vendor/firebase.js?v=2';
-import { firebaseConfig } from './config.js?v=2';
-import { planRemoval, yearOf } from './matching.js?v=2';
+} from '../vendor/firebase.js?v=3';
+import { firebaseConfig } from './config.js?v=3';
+import { planRemoval, yearOf } from './matching.js?v=3';
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
@@ -67,6 +67,7 @@ export const watch = {
   },
   announcements: (cb, err) =>
     onSnapshot(collection(db, 'announcements'), (qs) => cb(qs.docs.map((d) => ({ id: d.id, ...d.data(est) }))), err),
+  photo: (uid, cb, err) => onSnapshot(doc(db, 'photos', uid), (s) => cb(s.exists() ? s.data().data : null), err),
   // админ
   allUsers: (cb, err) => onSnapshot(collection(db, 'users'), (qs) => cb(qs.docs.map((d) => ({ id: d.id, ...d.data(est) }))), err),
   allAssignments: (cb, err) =>
@@ -111,6 +112,13 @@ export async function saveProfile(user, data, existing) {
     b.update(userRef, fields);
   }
   await b.commit();
+}
+
+export const savePhoto = (uid, data) => setDoc(doc(db, 'photos', uid), { data, updatedAt: serverTimestamp() });
+export const deletePhoto = (uid) => deleteDoc(doc(db, 'photos', uid));
+export async function getPhoto(uid) {
+  const s = await getDoc(doc(db, 'photos', uid));
+  return s.exists() ? s.data().data : null;
 }
 
 export function claimAdmin(user, code) {
@@ -192,6 +200,7 @@ export async function removeParticipant(user, { active, assign, users }) {
   }
   const b = writeBatch(db);
   b.delete(doc(db, 'users', uid));
+  b.delete(doc(db, 'photos', uid));
   if (user.studentCode) b.delete(doc(db, 'studentCodes', user.studentCode));
   await b.commit();
 }
