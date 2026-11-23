@@ -83,6 +83,17 @@ service cloud.firestore {
       allow delete: if isAdmin() || (signedIn() && me() == uid && isOpen());
     }
 
+    // Админы жагсаалтад харагдах жижиг зураг
+    match /thumbs/{uid} {
+      allow get, list: if isAdmin();
+      allow create, update: if signedIn() && me() == uid && isOpen()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && request.resource.data.keys().hasOnly(['data', 'updatedAt'])
+        && request.resource.data.data is string
+        && request.resource.data.data.size() < 30000;
+      allow delete: if isAdmin() || (signedIn() && me() == uid && isOpen());
+    }
+
     // Оюутны код давхцахгүй
     match /studentCodes/{code} {
       allow get: if signedIn();

@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText } from './ui.js?v=5';
-import * as fb from './fb.js?v=5';
-import { makeMatching, validateMatching, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=5';
-import { fileToPages } from './media.js?v=5';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay } from './ui.js?v=6';
+import * as fb from './fb.js?v=6';
+import { makeMatching, validateMatching, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=6';
+import { fileToPages } from './media.js?v=6';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
@@ -13,6 +13,10 @@ export function startAdminSubs(S, render, loud) {
     S.admin.assign = m;
     render();
   }, loud('assignments'));
+  const u4 = fb.watch.allThumbs((m) => {
+    S.admin.thumbs = m;
+    render();
+  }, () => {});
   const u3 = fb.watch.allNotifications((list) => {
     S.admin.notifications = list.sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
     render();
@@ -21,6 +25,7 @@ export function startAdminSubs(S, render, loud) {
     u1();
     u2();
     u3();
+    u4();
   };
 }
 
@@ -76,6 +81,7 @@ function peopleSection(ctx) {
   const users = people(S);
   const byId = byIdMap(S);
   const assign = S.admin.assign;
+  const thumbs = S.admin.thumbs || {};
   const active = S.config.state === 'active';
   const males = users.filter((u) => u.gender === 'male').length;
   const golden = active
@@ -110,7 +116,11 @@ function peopleSection(ctx) {
       h('td', { class: 'c-num', 'data-label': '№' }, String(i + 1)),
       h('td', { class: 'c-code', 'data-label': 'Код' }, u.studentCode),
       h('td', { class: 'c-name', 'data-label': 'Нэр' },
-        h('button', { class: 'linklike', type: 'button', onclick: () => details(ctx, u) }, shortName(u))),
+        h('span', { class: 'name-cell' },
+          thumbs[u.id]
+            ? h('img', { class: 'avatar-xs', src: thumbs[u.id], alt: '' })
+            : h('span', { class: 'avatar-xs avatar-empty', 'aria-hidden': 'true' }, (u.firstName || '?')[0].toUpperCase()),
+          h('button', { class: 'linklike', type: 'button', onclick: () => details(ctx, u) }, shortName(u)))),
       h('td', { class: 'c-gender', 'data-label': 'Хүйс' }, u.gender === 'male' ? 'Эр' : 'Эм'),
       h('td', { class: 'c-tcode', 'data-label': 'Монитагийн код' }, t ? t.studentCode : '—'),
       h('td', { class: 'c-tname', 'data-label': 'Монитагийн нэр' },
@@ -322,7 +332,8 @@ async function toggleFinal(ctx, btn) {
 
 function daysEditor(ctx) {
   const { S } = ctx;
-  let items = [...(S.config.days || [])];
+  const fromConfig = () => (S.config.days || []).map(normDay);
+  let items = fromConfig();
   let dirty = false;
   let sig = '';
   const list = h('ol', { class: 'days' });
@@ -333,12 +344,54 @@ function daysEditor(ctx) {
     saveBtn.disabled = false;
   };
 
+  function mediaBox(d, i) {
+    const box = h('div', { class: 'day-media-edit' });
+    if (d.files.length) {
+      box.append(
+        ctx.adFigure({ id: 'day-' + d.files[0], files: d.files, ratios: d.ratios }),
+        h('button', {
+          class: 'btn btn-small btn-danger', type: 'button', onclick: async () => {
+            const ok = await confirmDialog({ title: `${i + 1}-р өдрийн зургийг хасах уу?`, ok: 'Хасах', danger: true });
+            if (!ok) return;
+            const old = d.files;
+            items[i] = { ...items[i], files: [], ratios: [] };
+            await save(undefined, 'Зураг хасагдлаа');
+            fb.deleteFiles(old).catch(() => {});
+          },
+        }, 'Зураг хасах'));
+    } else {
+      const id = 'day-file-' + i + '-' + Math.random().toString(36).slice(2, 7);
+      const input = h('input', { type: 'file', accept: 'application/pdf,image/png,image/jpeg', class: 'sr-only', id });
+      const label = h('label', { class: 'btn btn-small btn-ghost', for: id }, svg(icons.upload), 'Зураг / PDF нэмэх');
+      input.addEventListener('change', async () => {
+        const file = input.files && input.files[0];
+        input.value = '';
+        if (!file) return;
+        label.classList.add('is-busy');
+        label.lastChild.textContent = 'Бэлдэж байна…';
+        try {
+          const pages = await fileToPages(file);
+          const saved = await fb.saveFiles(pages);
+          items[i] = { ...items[i], ...saved };
+          await save(undefined, 'Зураг нэмэгдлээ');
+        } catch (e) {
+          console.error(e);
+          toast(errText(e, e.message || 'Зураг нэмж чадсангүй'), 'error');
+          label.classList.remove('is-busy');
+          label.lastChild.textContent = 'Зураг / PDF нэмэх';
+        }
+      });
+      box.append(input, label);
+    }
+    return box;
+  }
+
   function draw() {
     const cur = S.config.currentDay || 0;
-    list.replaceChildren(...items.map((t, i) => {
-      const inp = h('input', { class: 'input', value: t, placeholder: 'Сэдэв', 'aria-label': `${i + 1}-р өдрийн сэдэв` });
+    list.replaceChildren(...items.map((d, i) => {
+      const inp = h('input', { class: 'input', value: d.theme, placeholder: 'Сэдэв', 'aria-label': `${i + 1}-р өдрийн сэдэв` });
       inp.addEventListener('input', () => {
-        items[i] = inp.value;
+        items[i] = { ...items[i], theme: inp.value };
         markDirty();
       });
       const isCur = S.config.state === 'active' && cur === i;
@@ -351,24 +404,26 @@ function daysEditor(ctx) {
             : h('button', { class: 'btn btn-small btn-ghost', type: 'button', onclick: () => save(i) }, 'Энэ өдөр рүү шилжих'),
           h('button', {
             class: 'icon-btn', type: 'button', 'aria-label': `${i + 1}-р өдрийг хасах`, onclick: () => {
-              items.splice(i, 1);
+              const removed = items.splice(i, 1)[0];
+              if (removed && removed.files.length) fb.deleteFiles(removed.files).catch(() => {});
               markDirty();
               draw();
             },
-          }, svg(icons.trash))));
+          }, svg(icons.trash))),
+        mediaBox(d, i));
     }));
     if (!items.length) list.append(h('li', { class: 'empty' }, 'Өдөр нэмээд сэдвээ оруулна уу.'));
   }
 
-  async function save(switchTo) {
-    const days = items.map((s) => s.trim());
+  async function save(switchTo, message) {
+    const days = items.map((d) => ({ theme: d.theme.trim(), files: d.files, ratios: d.ratios }));
     let currentDay = switchTo !== undefined ? switchTo : S.config.currentDay || 0;
     if (currentDay >= days.length) currentDay = Math.max(0, days.length - 1);
     saveBtn.disabled = true;
     try {
       await fb.updateConfig({ days, currentDay });
       dirty = false;
-      toast(switchTo !== undefined ? `${currentDay + 1}-р өдөр рүү шилжлээ` : 'Хадгаллаа');
+      toast(message || (switchTo !== undefined ? `${currentDay + 1}-р өдөр рүү шилжлээ` : 'Хадгаллаа'));
     } catch (e) {
       saveBtn.disabled = false;
       toast(errText(e), 'error');
@@ -376,24 +431,24 @@ function daysEditor(ctx) {
   }
 
   addBtn.addEventListener('click', () => {
-    items.push('');
+    items.push({ theme: '', files: [], ratios: [] });
     markDirty();
     draw();
-    const inputs = list.querySelectorAll('input');
+    const inputs = list.querySelectorAll('input.input');
     inputs[inputs.length - 1] && inputs[inputs.length - 1].focus();
   });
   saveBtn.addEventListener('click', () => save());
 
   const el = h('section', { class: 'panel' },
     h('h2', { class: 'h-section' }, 'Өдрүүд ба сэдэв'),
-    h('p', { class: 'muted' }, 'Өдөр бүрийн сэдвийг оруулж, сэдэв солих үед "Энэ өдөр рүү шилжих" товчийг дарна.'),
+    h('p', { class: 'muted' }, 'Өдөр бүрийн сэдвийг бичиж, хүсвэл зураг эсвэл PDF хавсаргана. Сэдэв солих үед "Энэ өдөр рүү шилжих" товчийг дарна.'),
     list,
     h('div', { class: 'actions' }, addBtn, saveBtn));
   el.sync = () => {
     const next = JSON.stringify([S.config.days || [], S.config.currentDay || 0, S.config.state]);
     if (next === sig) return;
     sig = next;
-    if (!dirty) items = [...(S.config.days || [])];
+    if (!dirty) items = fromConfig();
     draw();
   };
   return el;

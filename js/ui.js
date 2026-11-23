@@ -149,6 +149,13 @@ export function confirmDialog({ title, body, ok = 'Тийм', cancel = 'Боли
   });
 }
 
+// Өдөр: хуучин хувилбарт зөвхөн бичвэр байсан, одоо {theme, files, ratios}.
+export function normDay(d) {
+  if (!d) return { theme: '', files: [], ratios: [] };
+  if (typeof d === 'string') return { theme: d, files: [], ratios: [] };
+  return { theme: d.theme || '', files: d.files || [], ratios: d.ratios || [] };
+}
+
 export function initial(s) {
   return (String(s || '').trim()[0] || '').toUpperCase();
 }

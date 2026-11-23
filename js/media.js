@@ -95,5 +95,23 @@ export async function fileToAvatar(file) {
     q -= 0.1;
     data = canvas.toDataURL('image/jpeg', q);
   }
-  return data;
+  return { data, thumb: thumbFrom(canvas) };
+}
+
+function thumbFrom(source) {
+  const c = document.createElement('canvas');
+  c.width = 72;
+  c.height = 72;
+  c.getContext('2d').drawImage(source, 0, 0, 72, 72);
+  return c.toDataURL('image/jpeg', 0.72);
+}
+
+// Хуучин зурагнаас жижиг хувилбар гаргах.
+export function thumbFromDataUrl(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(thumbFrom(img));
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
 }

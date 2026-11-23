@@ -78,9 +78,13 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 
 /* ---------- Ачаалж байна ---------- */
 .loading { min-height: 100dvh; display: grid; place-items: center; }
-.loading-mark { width: 56px; height: 56px; display: block; animation: breathe 1.6s ease-in-out infinite; }
+.loading-mark { width: 60px; height: 60px; display: block; animation: cube-spin 1.8s cubic-bezier(.65, 0, .35, 1) infinite; filter: drop-shadow(0 10px 24px rgba(124, 246, 255, .25)); }
 .loading-mark svg { width: 100%; height: 100%; }
-@keyframes breathe { 50% { opacity: .4; transform: translateY(-4px); } }
+@keyframes cube-spin {
+  0% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(180deg); }
+  100% { transform: translateY(0) rotate(360deg); }
+}
 
 /* ---------- Нэвтрэх хуудас ---------- */
 .landing {
@@ -223,6 +227,31 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 }
 .page-wide { max-width: 1120px; }
 @media (min-width: 820px) { .page { padding: 40px 24px 64px; gap: 28px; } }
+.page-enter { animation: page-in .28s ease-out; }
+@keyframes page-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* компьютер дээр 2 багана */
+.home-grid { display: grid; gap: 24px; }
+.home-col { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+@media (min-width: 1000px) {
+  .home-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 28px; }
+  .home-col { gap: 28px; }
+}
+
+/* постерийн босоо бичиг */
+.vertical-mark {
+  position: fixed;
+  left: max(6px, env(safe-area-inset-left));
+  top: 50%;
+  transform: translateY(-50%) rotate(180deg);
+  writing-mode: vertical-rl;
+  font: 400 12px/1 var(--brand);
+  letter-spacing: .6em;
+  color: rgba(255, 255, 255, .55);
+  pointer-events: none;
+  white-space: nowrap;
+}
+@media (min-width: 820px) { .vertical-mark { left: 28px; font-size: 15px; letter-spacing: .7em; } }
 
 .h-display { font: 500 clamp(30px, 7.5vw, 44px)/1.08 var(--display); letter-spacing: .005em; }
 .h-section { font: 500 22px/1.2 var(--display); }
@@ -241,7 +270,18 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 /* ---------- Өдөр, сэдэв ---------- */
 .day { display: flex; flex-direction: column; gap: 6px; }
 .day-label { font: 400 14px var(--display); letter-spacing: .08em; color: var(--cyan); }
-.day-theme { font: 500 clamp(28px, 7vw, 40px)/1.12 var(--display); overflow-wrap: anywhere; }
+.day-theme {
+  font: 600 clamp(34px, 9vw, 58px)/1.06 var(--display);
+  overflow-wrap: anywhere;
+  background: linear-gradient(100deg, #A6FAFF 0%, #8FC2FF 35%, #C7A2FF 65%, #FF9EDB 88%, #FFD3B8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  padding-bottom: 4px;
+}
+.day-media { margin-top: 10px; width: min(240px, 60vw); }
+.day-media-edit { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; grid-column: 1 / -1; }
+.day-media-edit .ad { width: 110px; }
 .dimstring { display: flex; gap: 6px; margin-bottom: 12px; padding-top: 20px; }
 .dim-seg { position: relative; flex: 1; height: 4px; border-radius: 4px; background: rgba(255, 255, 255, .18); }
 .dim-num { position: absolute; left: 0; top: -20px; font: 400 12px var(--display); color: var(--muted); }
@@ -282,6 +322,42 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 }
 .tblock.skeleton { min-height: 280px; background: linear-gradient(90deg, var(--panel), rgba(255, 255, 255, .11), var(--panel)); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
 @keyframes shimmer { to { background-position: -200% 0; } }
+
+/* ---------- Бэлгийн хайрцаг шиг нээгдэх карт ---------- */
+.giftwrap { position: relative; border-radius: 22px; }
+.gift-slot { filter: blur(16px) saturate(.6); opacity: .35; pointer-events: none; user-select: none; transition: filter .6s, opacity .6s; }
+.gift-cover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 2px solid transparent;
+  border-radius: 22px;
+  background: linear-gradient(rgba(52, 27, 94, .92), rgba(52, 27, 94, .92)) padding-box, var(--iris) border-box;
+  color: var(--text);
+  cursor: pointer;
+  overflow: hidden;
+}
+.gift-cover::before, .gift-cover::after { content: ''; position: absolute; background: var(--iris); opacity: .35; }
+.gift-cover::before { left: 50%; top: 0; bottom: 0; width: 18px; transform: translateX(-50%); }
+.gift-cover::after { top: 50%; left: 0; right: 0; height: 18px; transform: translateY(-50%); }
+.gift-cube { position: relative; z-index: 1; width: 72px; height: 72px; display: inline-flex; animation: float 4s ease-in-out infinite; }
+.gift-cube svg { width: 100%; height: 100%; }
+.gift-label { position: relative; z-index: 1; font: 500 20px var(--display); text-align: center; padding: 0 16px; }
+.gift-hint { position: relative; z-index: 1; padding: 8px 22px; border-radius: 999px; background: #fff; color: var(--bg); font: 500 15px var(--display); }
+.giftwrap.gold .gift-cover { background: linear-gradient(rgba(52, 27, 94, .92), rgba(52, 27, 94, .92)) padding-box, var(--gold-grad) border-box; }
+.giftwrap.gold .gift-cover::before, .giftwrap.gold .gift-cover::after { background: var(--gold-grad); }
+.giftwrap.opening .gift-cover { animation: unwrap .95s ease-in forwards; pointer-events: none; }
+.giftwrap.opening .gift-cube { animation: lift .95s ease-in forwards; }
+.giftwrap.opening .gift-slot { filter: none; opacity: 1; }
+@keyframes unwrap { 0% { opacity: 1; } 35% { transform: scale(1.03); opacity: 1; } 100% { transform: scale(1.12); opacity: 0; } }
+@keyframes lift { 40% { transform: translateY(-14px) rotate(-8deg) scale(1.1); } 100% { transform: translateY(-60px) rotate(20deg) scale(.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .page-enter, .gift-cube, .giftwrap.opening .gift-cover, .giftwrap.opening .gift-cube { animation: none; }
+}
 
 /* ---------- Форм ---------- */
 .form { display: flex; flex-direction: column; gap: 18px; }
@@ -390,6 +466,9 @@ select.input option { background: var(--bg-2); color: var(--text); }
 .ptable .c-act { width: 52px; text-align: right; padding: 4px 8px; }
 .ptable tr.is-golden td { background: rgba(255, 210, 122, .08); }
 .gold-mark { color: var(--gold); font-weight: 600; }
+.name-cell { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.avatar-xs { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex: none; }
+.avatar-xs.avatar-empty { font-size: 12px; }
 .table-wrap .empty { padding: 16px; }
 
 @media (max-width: 760px) {

@@ -1,10 +1,10 @@
 import {
-  h, svg, icons, GIFT_MINI, HERO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial,
+  h, svg, icons, GIFT_MINI, HERO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay,
   toMillis, errText,
-} from './ui.js?v=5';
-import * as fb from './fb.js?v=5';
-import { adminContent, startAdminSubs } from './admin.js?v=5';
-import { fileToAvatar } from './media.js?v=5';
+} from './ui.js?v=6';
+import * as fb from './fb.js?v=6';
+import { adminContent, startAdminSubs } from './admin.js?v=6';
+import { fileToAvatar, thumbFromDataUrl } from './media.js?v=6';
 
 // ---------- Төлөв ----------
 const S = {
@@ -266,11 +266,31 @@ function syncPhotos() {
     sub('ph:' + uid, () =>
       fb.watch.photo(uid, (d) => {
         S.photos[uid] = d;
+        if (d && uid === S.user.uid) ensureThumb(d);
         render();
       }, quiet(() => {
         S.photos[uid] = null;
         render();
       })));
+  }
+}
+
+// Өмнө нь оруулсан зурагт админы жагсаалтын жижиг хувилбар байхгүй бол нэг удаа үүсгэнэ.
+let thumbDone = false;
+async function ensureThumb(data) {
+  if (thumbDone || !S.config || S.config.state === 'active') return;
+  const key = 'monita:thumb:' + S.user.uid;
+  try {
+    if (localStorage.getItem(key) === data.length + '') return;
+  } catch (_) {
+    /* */
+  }
+  thumbDone = true;
+  try {
+    await fb.saveThumb(S.user.uid, await thumbFromDataUrl(data));
+    localStorage.setItem(key, data.length + '');
+  } catch (e) {
+    console.warn('thumb', e && e.code);
   }
 }
 
@@ -410,9 +430,42 @@ function draw() {
   const tabs = availableTabs();
   if (!tabs.some((t) => t.id === S.tab)) S.tab = tabs[0].id;
   screens.main = screens.main || h('main', { class: 'page', id: 'main' });
-  screens.main.className = 'page' + (S.tab === 'admin' ? ' page-wide' : '');
+  const wide = S.tab === 'admin' || (S.tab === 'home' && S.profile && S.config.state === 'active');
+  screens.main.className = 'page' + (wide ? ' page-wide' : '') + (S.tab === screens.lastTab ? '' : ' page-enter');
+  screens.lastTab = S.tab;
   patch(screens.main, tabContent());
   patch(root, [topbar(tabs), screens.main, tabbar(tabs)]);
+  if (S.tab === 'home') markLettersSeen();
+}
+
+// ---------- Уншаагүй захидал ----------
+function lettersSeenKey() {
+  return 'monita:letters:' + (S.user ? S.user.uid : '');
+}
+function incomingLetters() {
+  const myKey = (S.assignment && S.assignment.k) || '';
+  return [
+    ...S.inbox.filter((m) => m.dir === 'down'),
+    ...S.outbox.filter((m) => m.dir === 'up' && (!m.k || m.k === myKey)),
+  ];
+}
+function unreadLetters() {
+  let seen = 0;
+  try {
+    seen = +(localStorage.getItem(lettersSeenKey()) || 0);
+  } catch (_) {
+    /* */
+  }
+  return incomingLetters().filter((m) => toMillis(m.createdAt) > seen).length;
+}
+function markLettersSeen() {
+  const latest = Math.max(0, ...incomingLetters().map((m) => toMillis(m.createdAt)));
+  if (!latest) return;
+  try {
+    if (+(localStorage.getItem(lettersSeenKey()) || 0) < latest) localStorage.setItem(lettersSeenKey(), String(latest));
+  } catch (_) {
+    /* */
+  }
 }
 
 function loadingView() {
@@ -421,7 +474,7 @@ function loadingView() {
 }
 
 function availableTabs() {
-  const t = [{ id: 'home', label: 'Нүүр', icon: 'home' }];
+  const t = [{ id: 'home', label: 'Нүүр', icon: 'home', badge: S.tab === 'home' ? 0 : unreadLetters() }];
   if (S.profile) {
     t.push({ id: 'profile', label: 'Профайл', icon: 'user' });
     t.push({ id: 'notifications', label: 'Мэдэгдэл', icon: 'bell', badge: unreadCount() });
@@ -477,6 +530,7 @@ function landingContent() {
         h('h1', { class: 'wordmark' }, 'Монита'))),
     keep('landing:signin', signInBlock),
     announcementsSection(),
+    keep('landing:vertical', () => h('div', { class: 'vertical-mark', 'aria-hidden': 'true' }, 'MUST ARCHITECTURE')),
   ];
 }
 
@@ -624,26 +678,74 @@ function homeContent() {
       h('p', { class: 'lead' }, 'Эхлэхээс өмнө профайлаа засах боломжтой.'),
       h('a', { class: 'btn btn-ghost', href: '#profile' }, S.photos[S.user.uid] ? 'Профайл харах' : 'Профайл зураг оруулах')));
     out.push(targetPlaceholder());
-  } else {
-    out.push(daySection(c));
-    const goldenReveal = c.finalDay && S.giverId && S.giverId === S.targetId && S.target;
-    if (goldenReveal) {
-      out.push(titleBlock('Таны монита', S.target, { golden: true, note: 'Та хоёр бие биенээ сонгосон алтан монита байлаа.' }));
-    } else {
-      if (c.finalDay) out.push(revealSection());
-      out.push(targetSection());
-    }
-    if (S.target) {
-      const po = keep('letters:out', () => letterPanel('out'));
-      po.sync();
-      out.push(po);
-    }
-    const pi = keep('letters:in', () => letterPanel('in'));
-    pi.sync();
-    out.push(pi);
+    out.push(announcementsSection());
+    return out;
   }
+  out.push(daySection(c));
+  const left = [];
+  const right = [];
+  const goldenReveal = c.finalDay && S.giverId && S.giverId === S.targetId && S.target;
+  if (goldenReveal) {
+    left.push(wrapped('gold:' + S.targetId, titleBlock('Таны монита', S.target, { golden: true, note: 'Та хоёр бие биенээ сонгосон алтан монита байлаа.' }), 'Сүүлийн өдрийн нууцыг нээх', true));
+  } else {
+    if (c.finalDay) left.push(revealSection());
+    left.push(targetSection());
+  }
+  if (S.target) {
+    const po = keep('letters:out', () => letterPanel('out'));
+    po.sync();
+    right.push(po);
+  }
+  const pi = keep('letters:in', () => letterPanel('in'));
+  pi.sync();
+  right.push(pi);
+  const colL = keep('home:left', () => h('div', { class: 'home-col' }));
+  const colR = keep('home:right', () => h('div', { class: 'home-col' }));
+  patch(colL, left);
+  patch(colR, right);
+  out.push(keep('home:grid', () => h('div', { class: 'home-grid' }, colL, colR)));
   out.push(announcementsSection());
   return out;
+}
+
+// Бэлгийн хайрцаг шиг нээгддэг карт (нэг удаа).
+const REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function openedKey(key) {
+  return 'monita:opened:' + S.user.uid + ':' + key;
+}
+function isOpened(key) {
+  try {
+    return localStorage.getItem(openedKey(key)) === '1';
+  } catch (_) {
+    return true;
+  }
+}
+function wrapped(key, card, label, golden = false) {
+  if (isOpened(key)) return card;
+  const box = keep('wrap:' + key, () => {
+    const el = h('div', { class: 'giftwrap' + (golden ? ' gold' : '') });
+    const slot = h('div', { class: 'gift-slot', 'aria-hidden': 'true' });
+    const cover = h('button', { class: 'gift-cover', type: 'button' },
+      svg(GIFT_MINI, 'gift-cube'),
+      h('span', { class: 'gift-label' }, label),
+      h('span', { class: 'gift-hint' }, 'Нээх'));
+    cover.addEventListener('click', () => {
+      el.classList.add('opening');
+      setTimeout(() => {
+        try {
+          localStorage.setItem(openedKey(key), '1');
+        } catch (_) {
+          /* */
+        }
+        render();
+      }, REDUCED ? 0 : 950);
+    });
+    el._slot = slot;
+    el.append(slot, cover);
+    return el;
+  });
+  box._slot.replaceChildren(card);
+  return box;
 }
 
 function dimString(n, cur) {
@@ -653,16 +755,20 @@ function dimString(n, cur) {
 }
 
 function daySection(c) {
-  const days = c.days || [];
+  const days = (c.days || []).map(normDay);
   const cur = Math.min(c.currentDay || 0, Math.max(days.length - 1, 0));
-  const theme = (days[cur] || '').trim();
+  const day = days[cur] || normDay(null);
+  const theme = day.theme.trim();
   let label = 'Монита явагдаж байна';
   if (c.finalDay) label = 'Сүүлийн өдөр';
   else if (days.length) label = theme ? `${cur + 1}-р өдрийн сэдэв` : `${cur + 1}-р өдөр`;
   return h('section', { class: 'day' + (c.finalDay ? ' final' : '') },
     days.length > 1 ? dimString(days.length, cur) : null,
     h('p', { class: 'day-label' }, label),
-    theme ? h('p', { class: 'day-theme' }, theme) : null);
+    theme ? h('p', { class: 'day-theme' }, theme) : null,
+    day.files.length
+      ? h('div', { class: 'day-media' }, keep('daymedia:' + day.files[0], () => adFigure({ id: 'day-' + day.files[0], files: day.files, ratios: day.ratios })))
+      : null);
 }
 
 function waiting() {
@@ -746,13 +852,14 @@ function targetPlaceholder() {
 function targetSection() {
   if (S.assignment === undefined || (S.targetId && S.target === undefined)) return waiting();
   if (!S.target) return h('p', { class: 'note' }, 'Танд одоогоор монита сонгогдоогүй байна.');
-  return titleBlock('Таны монита', S.target);
+  const key = 'm:' + ((S.assignment && S.assignment.k) || S.targetId);
+  return wrapped(key, titleBlock('Таны монита', S.target), 'Таны монита хэн бэ?');
 }
 
 function revealSection() {
   if (S.giverId === undefined || (S.giverId && S.giver === undefined)) return waiting();
   if (!S.giver) return null;
-  return titleBlock('Таныг сонгосон хүн', S.giver);
+  return wrapped('g:' + S.giverId, titleBlock('Таныг сонгосон хүн', S.giver), 'Таныг хэн сонгосон бэ?');
 }
 
 // ---------- Бүртгэл ба профайл ----------
@@ -823,8 +930,8 @@ function photoControl() {
     pick.classList.add('is-busy');
     status.textContent = 'Зургийг бэлдэж байна…';
     try {
-      const data = await fileToAvatar(file);
-      await fb.savePhoto(S.user.uid, data);
+      const { data, thumb } = await fileToAvatar(file);
+      await fb.savePhoto(S.user.uid, data, thumb);
       status.textContent = '';
       toast('Профайл зураг хадгалагдлаа');
     } catch (e) {

@@ -4,9 +4,9 @@ import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, collection, query, where, onSnapshot, getDoc, getDocs, getDocFromCache, setDoc,
   deleteDoc, writeBatch, serverTimestamp, terminate, clearIndexedDbPersistence,
-} from '../vendor/firebase.js?v=5';
-import { firebaseConfig } from './config.js?v=5';
-import { planRemoval, yearOf } from './matching.js?v=5';
+} from '../vendor/firebase.js?v=6';
+import { firebaseConfig } from './config.js?v=6';
+import { planRemoval, yearOf } from './matching.js?v=6';
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
@@ -90,6 +90,12 @@ export const watch = {
       qs.docs.forEach((d) => (m[d.id] = d.data().target));
       cb(m);
     }, err),
+  allThumbs: (cb, err) =>
+    onSnapshot(collection(db, 'thumbs'), (qs) => {
+      const m = {};
+      qs.docs.forEach((d) => (m[d.id] = d.data().data));
+      cb(m);
+    }, err),
   allNotifications: (cb, err) =>
     onSnapshot(collection(db, 'notifications'), (qs) => cb(qs.docs.map((d) => ({ id: d.id, ...d.data(est) }))), err),
 };
@@ -139,8 +145,15 @@ export function sendLetter({ t, dir, k, text }) {
   return setDoc(doc(collection(db, 'letters')), { t, dir, k: k || '', text, createdAt: serverTimestamp() });
 }
 
-export const savePhoto = (uid, data) => setDoc(doc(db, 'photos', uid), { data, updatedAt: serverTimestamp() });
-export const deletePhoto = (uid) => deleteDoc(doc(db, 'photos', uid));
+export async function savePhoto(uid, data, thumb) {
+  await setDoc(doc(db, 'photos', uid), { data, updatedAt: serverTimestamp() });
+  if (thumb) await saveThumb(uid, thumb);
+}
+export const saveThumb = (uid, data) => setDoc(doc(db, 'thumbs', uid), { data, updatedAt: serverTimestamp() });
+export async function deletePhoto(uid) {
+  await deleteDoc(doc(db, 'photos', uid));
+  await deleteDoc(doc(db, 'thumbs', uid)).catch(() => {});
+}
 export async function getPhoto(uid) {
   const s = await getDoc(doc(db, 'photos', uid));
   return s.exists() ? s.data().data : null;
@@ -232,22 +245,29 @@ export async function removeParticipant(user, { active, assign, users }) {
   const b = writeBatch(db);
   b.delete(doc(db, 'users', uid));
   b.delete(doc(db, 'photos', uid));
+  b.delete(doc(db, 'thumbs', uid));
   if (user.studentCode) b.delete(doc(db, 'studentCodes', user.studentCode));
   await b.commit();
 }
 
-export async function addAnnouncement(pages) {
+// Зураг/PDF хуудсуудыг хадгална (зар болон өдрийн сэдэвт).
+export async function saveFiles(pages) {
   const files = [];
   for (const p of pages) {
     const ref = doc(collection(db, 'announcementFiles'));
     await setDoc(ref, { data: p.data, w: p.w, h: p.h });
     files.push(ref.id);
   }
-  await setDoc(doc(collection(db, 'announcements')), {
-    files,
-    ratios: pages.map((p) => +(p.h / p.w).toFixed(4)),
-    createdAt: serverTimestamp(),
-  });
+  return { files, ratios: pages.map((p) => +(p.h / p.w).toFixed(4)) };
+}
+
+export async function deleteFiles(ids) {
+  await inChunks((ids || []).map((id) => () => deleteDoc(doc(db, 'announcementFiles', id))));
+}
+
+export async function addAnnouncement(pages) {
+  const { files, ratios } = await saveFiles(pages);
+  await setDoc(doc(collection(db, 'announcements')), { files, ratios, createdAt: serverTimestamp() });
 }
 
 export async function deleteAnnouncement(a) {
