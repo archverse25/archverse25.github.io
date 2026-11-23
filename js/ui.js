@@ -51,35 +51,44 @@ export const icons = {
   copy: I('<rect x="8" y="8" width="12" height="12" rx="1.5"/><path d="M16 8V4H4v12h4"/>'),
 };
 
-export const GIFT_MINI = `<svg viewBox="0 0 32 32" fill="none" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M16 6 27 12 16 18 5 12Z M5 12v10l11 6 11-6V12 M16 18v10" stroke="currentColor" stroke-width="1.6"/>
-  <path d="M10.5 9 21.5 15M21.5 9 10.5 15M10.5 15v10M21.5 15v10" stroke="var(--holly)" stroke-width="1.8"/>
+// Жижиг солонгорсон куб (лого).
+export const GIFT_MINI = `<svg viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="mcT" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C9FCFF"/><stop offset="1" stop-color="#8FB8FF"/></linearGradient>
+    <linearGradient id="mcL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8DF3FF"/><stop offset="1" stop-color="#3A6BFF"/></linearGradient>
+    <linearGradient id="mcR" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3A86FF"/><stop offset=".6" stop-color="#B04BFF"/><stop offset="1" stop-color="#FF6FCF"/></linearGradient>
+  </defs>
+  <path d="M16 3 28 10 16 17 4 10Z" fill="url(#mcT)"/>
+  <path d="M4 10 16 17V30L4 23Z" fill="url(#mcL)"/>
+  <path d="M28 10 16 17V30L28 23Z" fill="url(#mcR)"/>
 </svg>`;
 
-// Аксонометр бэлгийн хайрцаг, доор нь хэмжээсийн шугам (архитектур зургийн хэв маяг).
-export const HERO_ART = `<svg class="hero-art" viewBox="0 0 260 250" role="img" aria-label="Бэлгийн хайрцагны аксонометр зураг">
-  <g class="ax-hidden" stroke="var(--pine)" stroke-width="1" stroke-dasharray="3 4" fill="none">
-    <path d="M52.06 135 130 90 207.94 135 M130 20V90"/>
+// Постер шиг солонгорсон хоёр куб.
+export const HERO_ART = `<svg class="hero-art" viewBox="0 0 320 250" role="img" aria-label="Солонгорсон куб">
+  <defs>
+    <linearGradient id="hT" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D2FDFF"/><stop offset=".55" stop-color="#9FE9FF"/><stop offset="1" stop-color="#8E9BFF"/></linearGradient>
+    <linearGradient id="hL" x1="0" y1="0" x2=".4" y2="1"><stop offset="0" stop-color="#9AF6FF"/><stop offset=".55" stop-color="#2FC6E8"/><stop offset="1" stop-color="#3155F2"/></linearGradient>
+    <linearGradient id="hR" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1F8BFF"/><stop offset=".45" stop-color="#18C7C9"/><stop offset=".7" stop-color="#7B45FF"/><stop offset="1" stop-color="#F563D6"/></linearGradient>
+    <linearGradient id="sT" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE0F4"/><stop offset="1" stop-color="#B58CFF"/></linearGradient>
+    <linearGradient id="sL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB8E2"/><stop offset="1" stop-color="#8B3DFF"/></linearGradient>
+    <linearGradient id="sR" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E24BFF"/><stop offset=".6" stop-color="#5A7BFF"/><stop offset="1" stop-color="#FFC9A8"/></linearGradient>
+  </defs>
+  <g class="cube cube-big">
+    <g transform="rotate(-9 182 112)">
+      <path d="M182 26 256 69 182 112 108 69Z" fill="url(#hT)"/>
+      <path d="M108 69 182 112V198L108 155Z" fill="url(#hL)"/>
+      <path d="M256 69 182 112V198L256 155Z" fill="url(#hR)"/>
+      <path d="M108 155 182 198" stroke="#F3FF8C" stroke-width="1.4" fill="none"/>
+      <path d="M108 69 182 112 256 69" stroke="rgba(255,255,255,.75)" stroke-width="1.2" fill="none"/>
+    </g>
   </g>
-  <g class="ax" stroke="var(--pine)" stroke-width="1.6" fill="none" stroke-linejoin="round">
-    <path pathLength="1" d="M130 20 207.94 65 130 110 52.06 65Z"/>
-    <path pathLength="1" d="M52.06 65V135L130 180 207.94 135V65"/>
-    <path pathLength="1" d="M130 110V180"/>
+  <g class="cube cube-small">
+    <g transform="rotate(24 58 196)">
+      <path d="M58 168 82 182 58 196 34 182Z" fill="url(#sT)"/>
+      <path d="M34 182 58 196V224L34 210Z" fill="url(#sL)"/>
+      <path d="M82 182 58 196V224L82 210Z" fill="url(#sR)"/>
+    </g>
   </g>
-  <g class="ax ribbon" stroke="var(--holly)" stroke-width="4.5" fill="none" stroke-linecap="butt">
-    <path pathLength="1" d="M168.97 42.5 91.03 87.5V157.5"/>
-    <path pathLength="1" d="M91.03 42.5 168.97 87.5V157.5"/>
-  </g>
-  <g class="ax bow" stroke="var(--holly)" stroke-width="2" fill="none" stroke-linecap="round">
-    <path pathLength="1" d="M130 64C118 46 98 44 104 56 108 64 122 65 130 64Z"/>
-    <path pathLength="1" d="M130 64C142 46 162 44 156 56 152 64 138 65 130 64Z"/>
-  </g>
-  <g class="dim" stroke="var(--pine)" stroke-width="1" fill="none">
-    <path d="M52.06 190V226M207.94 190V226"/>
-    <path d="M40 220H220"/>
-    <path d="M47 225 57 215M202.94 225 212.94 215" stroke-width="1.6"/>
-  </g>
-  <text class="dim-label" x="130" y="212" text-anchor="middle">2027</text>
 </svg>`;
 
 let toastTimer;

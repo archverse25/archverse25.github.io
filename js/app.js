@@ -1,9 +1,9 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, toast, openDialog, shortName, genderLabel, fmtPhone, fmtDate,
   toMillis, errText,
-} from './ui.js?v=1';
-import * as fb from './fb.js?v=1';
-import { adminContent, startAdminSubs } from './admin.js?v=1';
+} from './ui.js?v=2';
+import * as fb from './fb.js?v=2';
+import { adminContent, startAdminSubs } from './admin.js?v=2';
 
 // ---------- Төлөв ----------
 const S = {
@@ -354,8 +354,8 @@ function landingContent() {
     keep('landing:hero', () =>
       h('section', { class: 'hero' },
         svg(HERO_ART, 'hero-figure'),
-        h('h1', { class: 'wordmark' }, 'Монита'),
-        h('p', { class: 'hero-sub' }, 'Архитектурын ангийн шинэ жилийн монита'))),
+        h('p', { class: 'hero-eyebrow' }, 'ARXI.VERSE-25'),
+        h('h1', { class: 'wordmark' }, 'Монита'))),
     keep('landing:signin', signInBlock),
     announcementsSection(),
   ];

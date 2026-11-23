@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText } from './ui.js?v=1';
-import * as fb from './fb.js?v=1';
-import { makeMatching, validateMatching, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=1';
-import { fileToPages } from './media.js?v=1';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText } from './ui.js?v=2';
+import * as fb from './fb.js?v=2';
+import { makeMatching, validateMatching, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=2';
+import { fileToPages } from './media.js?v=2';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
