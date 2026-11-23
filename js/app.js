@@ -1,10 +1,10 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay, parseDay, fmtDay,
   toMillis, errText,
-} from './ui.js?v=13';
-import * as fb from './fb.js?v=13';
-import { adminContent, startAdminSubs } from './admin.js?v=13';
-import { fileToAvatar, thumbFromDataUrl } from './media.js?v=13';
+} from './ui.js?v=14';
+import * as fb from './fb.js?v=14';
+import { adminContent, startAdminSubs } from './admin.js?v=14';
+import { fileToAvatar, thumbFromDataUrl } from './media.js?v=14';
 
 // ---------- Төлөв ----------
 const S = {
@@ -89,6 +89,42 @@ function patch(parent, kids) {
     const cur = parent.childNodes[i];
     if (cur !== k) parent.insertBefore(k, cur || null);
   });
+}
+
+// ---------- Холбоо барих, хувийн мэдээлэл ----------
+const CONTACT_URL = 'https://www.instagram.com/arxi.verse_25/';
+
+function contactLink(text = 'Instagram: @arxi.verse_25') {
+  return h('a', { class: 'linklike', href: CONTACT_URL, target: '_blank', rel: 'noopener noreferrer' }, text);
+}
+
+function openPrivacy() {
+  const sec = (title, ...body) => h('section', { class: 'privacy-sec' }, h('h3', null, title), ...body);
+  const ul = (items) => h('ul', null, items.map((t) => h('li', null, t)));
+  openDialog(h('div', { class: 'privacy' },
+    sec('Ямар мэдээлэл цуглуулдаг вэ',
+      ul(['Gmail хаяг (Google-ээр нэвтрэхэд)', 'Овог, нэр, оюутны код, хүйс, утасны дугаар', 'Сонирхол, хүсэж буй бэлэг', 'Профайл зураг (заавал биш)', 'Нэргүй захидал'])),
+    sec('Юунд ашигладаг вэ',
+      h('p', null, 'Зөвхөн ARXI.VERSE-25 ангийн монитаг зохион байгуулахад: хэн хэнд бэлэг өгөхийг холбох, бэлэг өгөх хүнд таны мэдээллийг харуулах.')),
+    sec('Хэн хардаг вэ',
+      ul([
+        'Монита эхэлсний дараа танд бэлэг өгөх хүн таны нэр, утас, сонирхол, зургийг харна.',
+        'Сүүлийн өдөр хэн хэнийг сонгосон нь илчлэгдэнэ.',
+        'Админ бүх оролцогчийн мэдээллийг харна.',
+        'Бусад оролцогч болон гадны хүн таны мэдээллийг харахгүй.',
+      ])),
+    sec('Хаана, хэр удаан хадгалдаг вэ',
+      h('p', null, 'Google-ийн Firebase үйлчилгээнд хадгалагдана. Монита дууссаны дараа админ оролцогчдын бүх мэдээллийг устгана. Сайт таны Google нууц үгийг хэзээ ч харахгүй, хадгалахгүй.')),
+    sec('Таны эрх',
+      h('p', null, 'Монита эхлэхээс өмнө мэдээллээ засах, Профайл хэсгээс бүртгэлээ өөрөө устгах боломжтой. Монита явагдаж байх үед устгуулах бол админд хандана уу.')),
+    sec('Холбоо барих', h('p', null, contactLink()))),
+  { title: 'Хувийн мэдээллийн бодлого', wide: true });
+}
+
+function siteFooter() {
+  return keep('site:footer', () => h('footer', { class: 'site-foot' },
+    h('button', { class: 'linklike', type: 'button', onclick: openPrivacy }, 'Хувийн мэдээллийн бодлого'),
+    h('span', null, 'Холбоо барих: ', contactLink())));
 }
 
 // ---------- Интернэт тасрах үед ----------
@@ -484,7 +520,7 @@ function draw() {
   const wide = S.tab === 'admin' || (S.profile && (S.tab === 'home' || S.tab === 'profile'));
   screens.main.className = 'page' + (wide ? ' page-wide' : '') + (S.tab === screens.lastTab ? '' : ' page-enter');
   screens.lastTab = S.tab;
-  patch(screens.main, tabContent());
+  patch(screens.main, [tabContent(), siteFooter()]);
   const deco = keep('bg:deco', () => svg(DECO_ART, 'bg-deco'));
   patch(root, [topbar(tabs), screens.main, tabbar(tabs), deco]);
   if (S.tab === 'home') markLettersSeen();
@@ -621,6 +657,7 @@ function landingContent() {
     keep('landing:signin', signInBlock),
     announcementsSection(),
     keep('landing:vertical', () => h('div', { class: 'vertical-mark', 'aria-hidden': 'true' }, 'MUST ARCHITECTURE')),
+    siteFooter(),
   ];
 }
 
@@ -1038,6 +1075,7 @@ function profileContent() {
   right.push(h('section', { class: 'account' },
     h('div', null, h('p', { class: 'muted small' }, 'Google бүртгэл'), h('p', { class: 'account-email' }, S.user.email)),
     h('button', { class: 'btn btn-ghost', type: 'button', onclick: () => fb.logOut() }, svg(icons.logout), 'Гарах')));
+  if (S.config.state === 'registration' && !S.editing) right.push(deleteAccountPanel());
   if (!S.isAdmin) right.push(keep('form:admin', adminCodeForm));
   const colL = keep('profile:left', () => h('div', { class: 'profile-col' }));
   const colR = keep('profile:right', () => h('div', { class: 'profile-col profile-side' }));
@@ -1047,6 +1085,41 @@ function profileContent() {
     h('header', { class: 'page-head' }, h('h1', { class: 'h-display' }, 'Профайл')),
     keep('profile:grid', () => h('div', { class: 'profile-grid' }, colL, colR)),
   ];
+}
+
+// Монита эхлэхээс өмнө бүртгэлээ өөрөө устгах.
+function deleteAccountPanel() {
+  const btn = h('button', { class: 'btn btn-small btn-danger', type: 'button' }, svg(icons.trash), 'Бүртгэлээ устгах');
+  btn.addEventListener('click', async () => {
+    const ok = await confirmDialog({
+      title: 'Бүртгэлээ устгах уу?',
+      body: 'Таны мэдээлэл, зураг бүрмөсөн устна. Дахин оролцох бол шинээр бүртгүүлнэ.',
+      ok: 'Устгах',
+      danger: true,
+    });
+    if (!ok) return;
+    btn.disabled = true;
+    try {
+      const code = S.profile && S.profile.studentCode;
+      await fb.deleteMyAccount(S.user.uid, code);
+      try {
+        localStorage.removeItem('monita:thumb:' + S.user.uid);
+      } catch (_) {
+        /* */
+      }
+      toast('Бүртгэл устлаа');
+    } catch (e) {
+      console.error(e);
+      const msg = e.code !== 'permission-denied' ? errText(e)
+        : S.config.state === 'registration' ? 'Одоогоор бүртгэл устгах боломжгүй байна. Админд хандана уу.'
+          : 'Монита эхэлсэн тул бүртгэл устгах боломжгүй.';
+      toast(msg, 'error');
+      btn.disabled = false;
+    }
+  });
+  return h('section', { class: 'account danger-zone' },
+    h('p', { class: 'muted small' }, 'Монита эхлэхээс өмнө бүртгэлээ устгах боломжтой.'),
+    btn);
 }
 
 function photoControl() {
@@ -1111,7 +1184,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=13'));
+    ({ AVATARS: list } = await import('./avatars.js?v=14'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;
@@ -1202,8 +1275,22 @@ function profileForm(p) {
   const submit = h('button', { class: 'btn btn-primary', type: 'submit' }, p ? 'Хадгалах' : 'Бүртгүүлэх');
   const formErr = h('p', { class: 'field-error form-error', role: 'alert' });
 
+  // Хувийн мэдээллийн зөвшөөрөл (өмнө нь өгөөгүй бол).
+  const needConsent = !p || !p.consentAt;
+  const consent = h('input', { type: 'checkbox', class: 'check-input', id: 'consent-' + Math.random().toString(36).slice(2, 7) });
+  const consentErr = h('p', { class: 'field-error', role: 'alert' });
+  const fConsent = needConsent
+    ? h('div', { class: 'field consent' },
+      h('div', { class: 'check-row' },
+        consent,
+        h('label', { for: consent.id }, 'Миний мэдээллийг монита зохион байгуулахад ашиглахыг зөвшөөрч байна.')),
+      h('button', { class: 'linklike consent-more', type: 'button', onclick: openPrivacy }, 'Хувийн мэдээллийн бодлого'),
+      consentErr)
+    : null;
+  consent.addEventListener('change', () => consent.checked && (consentErr.textContent = ''));
+
   const form = h('form', { class: 'form panel', novalidate: true },
-    fCode, fGender, h('div', { class: 'row-2' }, fLast, fFirst), fPhone, fWishes, formErr,
+    fCode, fGender, h('div', { class: 'row-2' }, fLast, fFirst), fPhone, fWishes, fConsent, formErr,
     h('div', { class: 'actions' },
       p ? h('button', {
         class: 'btn btn-ghost', type: 'button', onclick: () => {
@@ -1224,7 +1311,9 @@ function profileForm(p) {
       firstName: first.value.trim(),
       phone: phone.value.trim(),
       wishes: wishes.value.trim(),
+      consent: consent.checked,
     };
+    if (needConsent && !consent.checked) consentErr.textContent = 'Үргэлжлүүлэхийн тулд зөвшөөрнө үү.';
     const errs = [
       [fCode, /^B\d{9}$/.test(data.studentCode) ? '' : 'Код "B" үсэг, араас нь 9 оронтой тоо байна. Жишээ: B252800012'],
       [fGender, data.gender ? '' : 'Хүйсээ сонгоно уу.'],
@@ -1238,6 +1327,10 @@ function profileForm(p) {
     if (firstBad) {
       const ctl = firstBad[0].querySelector('input, textarea, button');
       ctl && ctl.focus();
+      return;
+    }
+    if (needConsent && !consent.checked) {
+      consent.focus();
       return;
     }
     submit.disabled = true;

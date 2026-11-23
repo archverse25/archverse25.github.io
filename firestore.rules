@@ -18,7 +18,7 @@ service cloud.firestore {
     function choseMe(uid) { return exists(assignPath(uid)) && get(assignPath(uid)).data.target == me(); }
 
     function validProfile(d, uid) {
-      return d.keys().hasOnly(['uid', 'email', 'studentCode', 'gender', 'lastName', 'firstName', 'phone', 'wishes', 'createdAt', 'updatedAt'])
+      return d.keys().hasOnly(['uid', 'email', 'studentCode', 'gender', 'lastName', 'firstName', 'phone', 'wishes', 'createdAt', 'updatedAt', 'consentAt'])
         && d.keys().hasAll(['uid', 'email', 'studentCode', 'gender', 'lastName', 'firstName', 'phone', 'wishes'])
         && d.uid == uid
         && d.email == request.auth.token.email
@@ -65,7 +65,8 @@ service cloud.firestore {
         && getAfter(/databases/$(database)/documents/studentCodes/$(request.resource.data.studentCode)).data.uid == uid
         && (request.resource.data.studentCode == resource.data.studentCode
             || !existsAfter(/databases/$(database)/documents/studentCodes/$(resource.data.studentCode)));
-      allow delete: if isAdmin();
+      // Админ, эсвэл монита эхлэхээс өмнө оролцогч өөрөө
+      allow delete: if isAdmin() || (signedIn() && me() == uid && isOpen());
     }
 
     // Профайл зураг (мэдээлэлтэй адил хүмүүст харагдана)

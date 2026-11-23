@@ -4,8 +4,8 @@ import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, collection, query, where, onSnapshot, getDoc, getDocs, getDocFromCache, setDoc,
   deleteDoc, writeBatch, serverTimestamp, terminate, clearIndexedDbPersistence,
-} from '../vendor/firebase.js?v=13';
-import { firebaseConfig } from './config.js?v=13';
+} from '../vendor/firebase.js?v=14';
+import { firebaseConfig } from './config.js?v=14';
 
 
 export const app = initializeApp(firebaseConfig);
@@ -160,6 +160,20 @@ export async function saveProfile(user, data, existing) {
     b.update(userRef, fields);
   }
   await b.commit();
+  // Хувийн мэдээллийн зөвшөөрөл өгсөн огноо. Тусдаа бичдэг тул энэ бичилт амжилтгүй болсон ч бүртгэл хадгалагдсан хэвээр байна.
+  if (data.consent && (!existing || !existing.consentAt)) {
+    setDoc(userRef, { consentAt: serverTimestamp() }, { merge: true }).catch((e) => console.warn('consent', e && e.code));
+  }
+}
+
+// Оролцогч монита эхлэхээс өмнө бүртгэлээ өөрөө устгана.
+export async function deleteMyAccount(uid, studentCode) {
+  const b = writeBatch(db);
+  b.delete(doc(db, 'users', uid));
+  b.delete(doc(db, 'photos', uid));
+  b.delete(doc(db, 'thumbs', uid));
+  if (studentCode) b.delete(doc(db, 'studentCodes', studentCode));
+  await b.commit();
 }
 
 export function newKey() {
@@ -228,6 +242,24 @@ export async function freshUsers() {
   const qs = await getDocs(collection(db, 'users'));
   if (qs.metadata && qs.metadata.fromCache) throw Object.assign(new Error('offline'), { code: 'unavailable' });
   return qs.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+// Монита дууссаны дараа оролцогчдын бүх мэдээллийг устгана. Зар, өдрийн сэдэв, админууд үлдэнэ.
+export async function wipeParticipantData() {
+  await updateConfig({ state: 'registration', finalDay: false, currentDay: 0 });
+  for (const col of ['assignments', 'letters', 'notifications', 'thumbs']) {
+    const qs = await getDocs(collection(db, col));
+    await inChunks(qs.docs.map((d) => () => deleteDoc(d.ref)));
+  }
+  const users = await freshUsers();
+  await inChunks(users.map((u) => async () => {
+    const b = writeBatch(db);
+    b.delete(doc(db, 'users', u.id));
+    b.delete(doc(db, 'photos', u.id));
+    if (u.studentCode) b.delete(doc(db, 'studentCodes', u.studentCode));
+    await b.commit();
+  }));
+  return users.length;
 }
 
 export async function startMonita(assign, goldenCount) {

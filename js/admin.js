@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay } from './ui.js?v=13';
-import * as fb from './fb.js?v=13';
-import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=13';
-import { fileToPages } from './media.js?v=13';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay } from './ui.js?v=14';
+import * as fb from './fb.js?v=14';
+import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=14';
+import { fileToPages } from './media.js?v=14';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
@@ -158,7 +158,7 @@ async function exportExcel(ctx, btn) {
   if (!users.length) return toast('Оролцогч алга байна.');
   btn.disabled = true;
   try {
-    const XLSX = await import('../vendor/xlsx.js?v=13');
+    const XLSX = await import('../vendor/xlsx.js?v=14');
     const byId = byIdMap(S);
     const assign = S.admin.assign;
     const active = S.config.state === 'active';
@@ -303,7 +303,50 @@ function monitaSection(ctx) {
   const status = h('section', { class: 'panel' }, h('h2', { class: 'h-section' }, 'Төлөв'), body);
   const days = ctx.keep('admin:days', () => daysEditor(ctx));
   days.sync();
-  return [status, days, adminsPanel(ctx)];
+  return [status, days, adminsPanel(ctx), wipePanel(ctx)];
+}
+
+// Монита дууссаны дараа оролцогчдын мэдээллийг бүрмөсөн устгах (хувийн мэдээллийн бодлогын дагуу).
+function wipePanel(ctx) {
+  const { S } = ctx;
+  const c = S.config;
+  const blocked = c.state === 'active' && !c.finalDay;
+  const btn = h('button', { class: 'btn btn-danger', type: 'button', disabled: blocked }, svg(icons.trash), 'Бүх мэдээллийг устгах');
+  btn.addEventListener('click', () => {
+    const input = h('input', { class: 'input', placeholder: 'УСТГАХ', autocomplete: 'off', 'aria-label': 'Баталгаажуулах үг' });
+    const go = h('button', { class: 'btn btn-danger', type: 'button', disabled: true }, 'Устгах');
+    input.addEventListener('input', () => (go.disabled = input.value.trim().toUpperCase() !== 'УСТГАХ'));
+    const close = openDialog(h('div', null,
+      h('p', { class: 'dialog-text' }, `${people(S).length} оролцогчийн бүртгэл, зураг, холболт, захидал, мэдэгдэл бүрмөсөн устна. Буцаах боломжгүй.`),
+      h('p', { class: 'muted small' }, 'Баталгаажуулахын тулд УСТГАХ гэж бичнэ үү.'),
+      input,
+      h('div', { class: 'dialog-actions' },
+        h('button', { class: 'btn btn-ghost', type: 'button', onclick: () => close() }, 'Болих'),
+        go)),
+    { title: 'Бүх мэдээллийг устгах уу?' });
+    go.addEventListener('click', async () => {
+      go.disabled = true;
+      input.disabled = true;
+      go.textContent = 'Устгаж байна…';
+      try {
+        const n = await fb.wipeParticipantData();
+        close();
+        toast(`${n} оролцогчийн мэдээлэл устлаа`);
+      } catch (e) {
+        console.error(e);
+        go.textContent = 'Устгах';
+        go.disabled = false;
+        input.disabled = false;
+        toast(errText(e, 'Устгаж чадсангүй. Дахин оролдоно уу.'), 'error');
+      }
+    });
+    setTimeout(() => input.focus(), 50);
+  });
+  return h('section', { class: 'panel danger-zone' },
+    h('h2', { class: 'h-section' }, 'Монита дууссаны дараа'),
+    h('p', { class: 'muted' }, 'Оролцогчдын бүртгэл, зураг, холболт, захидал, мэдэгдлийг бүрмөсөн устгана. Зар, өдрийн сэдэв, админууд хэвээр үлдэнэ.'),
+    blocked ? h('p', { class: 'note' }, 'Монита явагдаж байна. Сүүлийн өдрийг идэвхжүүлсний дараа эсвэл цуцалсны дараа устгах боломжтой.') : null,
+    h('div', { class: 'actions' }, btn));
 }
 
 // Админууд: хэн админ болсныг харах, хасах, шинээр админ болохыг хаах.
