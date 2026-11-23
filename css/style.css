@@ -563,3 +563,57 @@ select.input option { background: var(--bg-2); color: var(--text); }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .toast.error { background: var(--danger); color: #2A0A1A; border-radius: 18px; }
 @media (min-width: 820px) { .toast { bottom: 24px; } }
+
+/* ---------- Том дэлгэц (утасны загвар өөрчлөгдөхгүй) ---------- */
+.hero-sub { display: none; }
+.landing .hero { margin-top: -14px; }
+.hero-art-wrap { display: flex; justify-content: center; }
+.home-pre, .profile-grid { display: flex; flex-direction: column; gap: 24px; }
+.profile-col { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.bg-deco { display: none; }
+
+@media (min-width: 960px) {
+  .landing {
+    max-width: 1180px;
+    min-height: 100dvh;
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    grid-template-areas: 'text art' 'signin art' 'ads ads';
+    align-content: center;
+    align-items: center;
+    column-gap: 56px;
+    row-gap: 32px;
+    padding: 64px 72px;
+  }
+  .landing .hero-art-wrap { grid-area: art; }
+  .landing .hero-figure { width: min(540px, 40vw); }
+  .landing .hero { grid-area: text; align-items: flex-start; text-align: left; align-self: end; margin-top: 0; }
+  .landing .hero-eyebrow { margin-top: 0; font-size: 18px; }
+  .landing .wordmark { font-size: clamp(100px, 10.5vw, 156px); margin-top: 18px; }
+  .landing .hero-sub { display: block; margin-top: 20px; font-size: 20px; color: var(--muted); max-width: 28ch; }
+  .landing .signin { grid-area: signin; justify-self: start; align-self: start; width: 380px; }
+  .landing .ads { grid-area: ads; margin-top: 16px; }
+  .landing .ads .h-section { text-align: left; }
+  .landing .ads-grid { justify-content: start; }
+}
+
+@media (min-width: 1000px) {
+  .bg-deco { display: block; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .45; }
+  .bg-deco svg { width: 100%; height: 100%; display: block; }
+
+  .home-pre { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 56px; min-height: 360px; }
+  .home-pre .h-display { font-size: 56px; }
+  .home-pre .tblock.placeholder { min-height: 280px; display: flex; flex-direction: column; }
+  .home-pre .tb-empty { flex: 1; display: grid; place-items: center; text-align: center; font-size: 17px; }
+
+  .profile-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); align-items: start; gap: 32px; }
+  .profile-side { position: sticky; top: 92px; }
+  .profile-side .account, .profile-side .admin-code {
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    background: var(--panel);
+    padding: 20px 22px;
+  }
+  .profile-side .account { flex-direction: column; align-items: flex-start; }
+  .page:not(.page-wide) { max-width: 760px; }
+}

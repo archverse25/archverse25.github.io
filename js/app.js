@@ -1,10 +1,10 @@
 import {
-  h, svg, icons, GIFT_MINI, HERO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay,
+  h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay,
   toMillis, errText,
-} from './ui.js?v=7';
-import * as fb from './fb.js?v=7';
-import { adminContent, startAdminSubs } from './admin.js?v=7';
-import { fileToAvatar, thumbFromDataUrl } from './media.js?v=7';
+} from './ui.js?v=8';
+import * as fb from './fb.js?v=8';
+import { adminContent, startAdminSubs } from './admin.js?v=8';
+import { fileToAvatar, thumbFromDataUrl } from './media.js?v=8';
 
 // ---------- Төлөв ----------
 const S = {
@@ -430,11 +430,12 @@ function draw() {
   const tabs = availableTabs();
   if (!tabs.some((t) => t.id === S.tab)) S.tab = tabs[0].id;
   screens.main = screens.main || h('main', { class: 'page', id: 'main' });
-  const wide = S.tab === 'admin' || (S.tab === 'home' && S.profile && S.config.state === 'active');
+  const wide = S.tab === 'admin' || (S.profile && (S.tab === 'home' || S.tab === 'profile'));
   screens.main.className = 'page' + (wide ? ' page-wide' : '') + (S.tab === screens.lastTab ? '' : ' page-enter');
   screens.lastTab = S.tab;
   patch(screens.main, tabContent());
-  patch(root, [topbar(tabs), screens.main, tabbar(tabs)]);
+  const deco = keep('bg:deco', () => svg(DECO_ART, 'bg-deco'));
+  patch(root, [topbar(tabs), screens.main, tabbar(tabs), deco]);
   if (S.tab === 'home') markLettersSeen();
 }
 
@@ -523,11 +524,12 @@ function isInAppBrowser() {
 
 function landingContent() {
   return [
-    keep('landing:hero', () =>
+    keep('landing:art', () => h('div', { class: 'hero-art-wrap' }, svg(HERO_ART, 'hero-figure'))),
+    keep('landing:text', () =>
       h('section', { class: 'hero' },
-        svg(HERO_ART, 'hero-figure'),
         h('p', { class: 'hero-eyebrow' }, 'ARXI.VERSE-25'),
-        h('h1', { class: 'wordmark' }, 'Монита'))),
+        h('h1', { class: 'wordmark' }, 'Монита'),
+        h('p', { class: 'hero-sub' }, 'Архитектурын ангийн шинэ жилийн нууц бэлэг'))),
     keep('landing:signin', signInBlock),
     announcementsSection(),
     keep('landing:vertical', () => h('div', { class: 'vertical-mark', 'aria-hidden': 'true' }, 'MUST ARCHITECTURE')),
@@ -678,8 +680,7 @@ function homeContent() {
       h('p', { class: 'lead' }, 'Эхлэхээс өмнө профайлаа засах боломжтой.'),
       h('a', { class: 'btn btn-ghost', href: '#profile' }, S.photos[S.user.uid] ? 'Профайл харах' : 'Профайл зураг оруулах')));
     out.push(targetPlaceholder());
-    out.push(announcementsSection());
-    return out;
+    return [h('div', { class: 'home-pre' }, out), announcementsSection()];
   }
   out.push(daySection(c));
   const left = [];
@@ -887,14 +888,15 @@ function profileContent() {
     S.editing = false;
     forget('form:profile');
   }
-  const out = [h('header', { class: 'page-head' }, h('h1', { class: 'h-display' }, 'Профайл'))];
+  const left = [];
+  const right = [];
   const pc = keep('photo:control', photoControl);
   pc.sync();
-  out.push(pc);
-  if (S.editing) out.push(keep('form:profile', () => profileForm(S.profile)));
+  left.push(pc);
+  if (S.editing) left.push(keep('form:profile', () => profileForm(S.profile)));
   else {
-    out.push(titleBlock('Миний мэдээлэл', S.profile));
-    out.push(locked
+    left.push(titleBlock('Миний мэдээлэл', S.profile));
+    left.push(locked
       ? h('p', { class: 'note' }, 'Монита явагдаж байх үед мэдээллээ өөрчлөх боломжгүй.')
       : h('div', { class: 'actions' },
         h('button', {
@@ -905,12 +907,19 @@ function profileContent() {
           },
         }, 'Мэдээлэл засах')));
   }
-  out.push(installPanel());
-  out.push(h('section', { class: 'account' },
+  right.push(installPanel());
+  right.push(h('section', { class: 'account' },
     h('div', null, h('p', { class: 'muted small' }, 'Google бүртгэл'), h('p', { class: 'account-email' }, S.user.email)),
     h('button', { class: 'btn btn-ghost', type: 'button', onclick: () => fb.logOut() }, svg(icons.logout), 'Гарах')));
-  if (!S.isAdmin) out.push(keep('form:admin', adminCodeForm));
-  return out;
+  if (!S.isAdmin) right.push(keep('form:admin', adminCodeForm));
+  const colL = keep('profile:left', () => h('div', { class: 'profile-col' }));
+  const colR = keep('profile:right', () => h('div', { class: 'profile-col profile-side' }));
+  patch(colL, left);
+  patch(colR, right);
+  return [
+    h('header', { class: 'page-head' }, h('h1', { class: 'h-display' }, 'Профайл')),
+    keep('profile:grid', () => h('div', { class: 'profile-grid' }, colL, colR)),
+  ];
 }
 
 function photoControl() {
@@ -975,7 +984,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=7'));
+    ({ AVATARS: list } = await import('./avatars.js?v=8'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;

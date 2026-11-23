@@ -93,6 +93,28 @@ export const HERO_ART = `<svg class="hero-art" viewBox="0 0 320 250" role="img" 
   </g>
 </svg>`;
 
+// Том дэлгэцийн арын бүдэг кубууд (постер шиг).
+export const DECO_ART = `<svg class="deco-svg" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  <defs>
+    <linearGradient id="dT" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D2FDFF"/><stop offset="1" stop-color="#8E9BFF"/></linearGradient>
+    <linearGradient id="dL" x1="0" y1="0" x2=".4" y2="1"><stop offset="0" stop-color="#9AF6FF"/><stop offset="1" stop-color="#3155F2"/></linearGradient>
+    <linearGradient id="dR" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1F8BFF"/><stop offset=".6" stop-color="#7B45FF"/><stop offset="1" stop-color="#F563D6"/></linearGradient>
+    <linearGradient id="eT" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE0F4"/><stop offset="1" stop-color="#B58CFF"/></linearGradient>
+    <linearGradient id="eL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB8E2"/><stop offset="1" stop-color="#8B3DFF"/></linearGradient>
+    <linearGradient id="eR" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E24BFF"/><stop offset=".6" stop-color="#5A7BFF"/><stop offset="1" stop-color="#FFC9A8"/></linearGradient>
+  </defs>
+  <g class="deco-a" transform="translate(70 40) rotate(-12 930 560)">
+    <path d="M930 420 1051 490 930 560 809 490Z" fill="url(#dT)"/>
+    <path d="M809 490 930 560V700L809 630Z" fill="url(#dL)"/>
+    <path d="M1051 490 930 560V700L1051 630Z" fill="url(#dR)"/>
+  </g>
+  <g class="deco-b" transform="translate(-50 430) rotate(22 70 150)">
+    <path d="M70 110 105 130 70 150 35 130Z" fill="url(#eT)"/>
+    <path d="M35 130 70 150V190L35 170Z" fill="url(#eL)"/>
+    <path d="M105 130 70 150V190L105 170Z" fill="url(#eR)"/>
+  </g>
+</svg>`;
+
 let toastTimer;
 export function toast(msg, kind = 'info') {
   let el = document.getElementById('toast');
