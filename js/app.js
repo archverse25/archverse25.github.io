@@ -1,10 +1,10 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial,
   toMillis, errText,
-} from './ui.js?v=3';
-import * as fb from './fb.js?v=3';
-import { adminContent, startAdminSubs } from './admin.js?v=3';
-import { fileToAvatar } from './media.js?v=3';
+} from './ui.js?v=4';
+import * as fb from './fb.js?v=4';
+import { adminContent, startAdminSubs } from './admin.js?v=4';
+import { fileToAvatar } from './media.js?v=4';
 
 // ---------- Төлөв ----------
 const S = {

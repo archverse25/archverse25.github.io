@@ -4,9 +4,9 @@ import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, collection, query, where, onSnapshot, getDoc, getDocs, getDocFromCache, setDoc,
   deleteDoc, writeBatch, serverTimestamp, terminate, clearIndexedDbPersistence,
-} from '../vendor/firebase.js?v=3';
-import { firebaseConfig } from './config.js?v=3';
-import { planRemoval, yearOf } from './matching.js?v=3';
+} from '../vendor/firebase.js?v=4';
+import { firebaseConfig } from './config.js?v=4';
+import { planRemoval, yearOf } from './matching.js?v=4';
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
@@ -42,7 +42,12 @@ export const watch = {
   config: (cb, err) => onSnapshot(CONFIG(), (s) => cb(s.exists() ? s.data(est) : null), err),
   profile: (uid, cb, err) =>
     onSnapshot(doc(db, 'users', uid), (s) => cb(s.exists() ? s.data(est) : null, s.metadata.fromCache), err),
-  isAdmin: (uid, cb, err) => onSnapshot(doc(db, 'admins', uid), (s) => cb(s.exists()), err),
+  // Серверт баталгаажсаны дараа л админ гэж үзнэ (эс тэгвээс жагсаалтууд эрхгүй гэж унана).
+  isAdmin: (uid, cb, err) =>
+    onSnapshot(doc(db, 'admins', uid), { includeMetadataChanges: true }, (s) => {
+      if (s.metadata.hasPendingWrites) return;
+      cb(s.exists());
+    }, err),
   assignment: (uid, cb, err) => onSnapshot(doc(db, 'assignments', uid), (s) => cb(s.exists() ? s.data() : null), err),
   user: (uid, cb, err) => onSnapshot(doc(db, 'users', uid), (s) => cb(s.exists() ? s.data(est) : null), err),
   givers: (uid, cb, err) =>
