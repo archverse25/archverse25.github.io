@@ -152,12 +152,13 @@ export function openDialog(content, { title, wide = false, onClose } = {}) {
   return close;
 }
 
-export function confirmDialog({ title, body, ok = 'Тийм', cancel = 'Болих', danger = false }) {
+export function confirmDialog({ title, body, extra = null, ok = 'Тийм', cancel = 'Болих', danger = false }) {
   return new Promise((resolve) => {
     let result = false;
     const close = openDialog(
       h('div', null,
         body ? h('p', { class: 'dialog-text' }, body) : null,
+        extra,
         h('div', { class: 'dialog-actions' },
           h('button', { class: 'btn btn-ghost', type: 'button', onclick: () => close() }, cancel),
           h('button', {

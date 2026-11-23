@@ -1,10 +1,10 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay,
   toMillis, errText,
-} from './ui.js?v=11';
-import * as fb from './fb.js?v=11';
-import { adminContent, startAdminSubs } from './admin.js?v=11';
-import { fileToAvatar, thumbFromDataUrl } from './media.js?v=11';
+} from './ui.js?v=12';
+import * as fb from './fb.js?v=12';
+import { adminContent, startAdminSubs } from './admin.js?v=12';
+import { fileToAvatar, thumbFromDataUrl } from './media.js?v=12';
 
 // ---------- Төлөв ----------
 const S = {
@@ -1087,7 +1087,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=11'));
+    ({ AVATARS: list } = await import('./avatars.js?v=12'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;
@@ -1274,7 +1274,9 @@ function adminCodeForm() {
       toast('Админ эрх нээгдлээ');
       location.hash = '#admin';
     } catch (er) {
-      err.textContent = er.code === 'permission-denied' ? 'Код буруу байна.' : errText(er);
+      err.textContent = er.code === 'permission-denied'
+        ? (S.config && S.config.adminLocked ? 'Админ код хаалттай байна. Одоогийн админаас нээлгэнэ үү.' : 'Код буруу байна.')
+        : errText(er);
     } finally {
       btn.disabled = false;
     }

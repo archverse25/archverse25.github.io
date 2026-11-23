@@ -42,12 +42,13 @@ export function plannedGoldenCount(people) {
   return k;
 }
 
-function pickGolden(people, k, rnd) {
+// spread > 0 үед хамгийн ойр биш хосыг ч туршина (бусдын холболтыг сайжруулж болох тул).
+function pickGolden(people, k, rnd, spread = 0) {
   if (k === 0) return [];
   const males = shuffle(people.filter((p) => p.gender === 'male'), rnd);
   const females = shuffle(people.filter((p) => p.gender === 'female'), rnd);
   const pairs = [];
-  for (const m of males) for (const f of females) pairs.push({ m, f, g: gap(m.year, f.year), r: rnd() });
+  for (const m of males) for (const f of females) pairs.push({ m, f, g: gap(m.year, f.year) + rnd() * spread, r: rnd() });
   pairs.sort((a, b) => a.g - b.g || a.r - b.r);
   const used = new Set();
   const out = [];
@@ -61,10 +62,14 @@ function pickGolden(people, k, rnd) {
   return out;
 }
 
-function cyclesOf(next) {
+// Тойргуудын бүтцийн үнэ: 1 хүнтэй тойрог болон ижил хүйстэй 2 хүнтэй тойрог хориотой,
+// 2 хүнтэй (алтан) тойрог яг k ширхэг байх ёстой. ≥3 тойрог бүр +1 (цөөн тойрог давуу).
+function structure(next, gender, k) {
   const m = next.length;
   const seen = new Uint8Array(m);
-  const lens = [];
+  let cost = 0;
+  let twos = 0;
+  let cycles = 0;
   for (let i = 0; i < m; i++) {
     if (seen[i]) continue;
     let len = 0;
@@ -74,78 +79,203 @@ function cyclesOf(next) {
       j = next[j];
       len++;
     }
-    lens.push(len);
+    cycles++;
+    if (len === 1) cost += BAD_CYCLE;
+    else if (len === 2) {
+      if (gender[i] === gender[next[i]]) cost += BAD_CYCLE;
+      else twos++;
+    } else cost += 1;
   }
-  return lens;
+  return { cost: cost + Math.abs(twos - k) * BAD_CYCLE, cycles };
 }
 
-function structureCost(lens) {
-  let c = 0;
-  for (const l of lens) c += l < 3 ? BAD_CYCLE : 1;
-  return c;
-}
+// Бүх хүнийг нэг дор: k алтан хос + дор хаяж 3 хүнтэй тойргууд, онын зөрүүг хамгийн бага байлгана.
+function optimize(ps, k, rnd, spread) {
+  const m = ps.length;
+  const ys = ps.map((p) => p.year);
+  const gender = ps.map((p) => p.gender);
+  const idx = new Map(ps.map((p, i) => [p.uid, i]));
+  const next = new Array(m);
 
-// Үлдсэн хүмүүсийг дор хаяж 3 хүнтэй тойрогт хуваана.
-function cycleCover(nodes, rnd) {
-  const m = nodes.length;
-  if (m === 0) return { next: [], violation: 0, cycles: 0 };
-  const ys = nodes.map((p) => p.year);
-
-  // Эхлэл: оноор эрэмбэлээд зигзаг тойрог (санамсаргүй дараалал нэг онд).
-  const order = nodes.map((_, i) => i);
-  const r = order.map(() => rnd());
+  // Эхлэл: алтан хосууд + үлдсэнийг оноор эрэмбэлсэн зигзаг тойрог.
+  const golden = pickGolden(ps, k, rnd, spread);
+  const inGolden = new Set();
+  for (const [a, b] of golden) {
+    next[idx.get(a.uid)] = idx.get(b.uid);
+    next[idx.get(b.uid)] = idx.get(a.uid);
+    inGolden.add(a.uid);
+    inGolden.add(b.uid);
+  }
+  const order = ps.map((_, i) => i).filter((i) => !inGolden.has(ps[i].uid));
+  const r = ps.map(() => rnd());
   order.sort((a, b) => ys[a] - ys[b] || r[a] - r[b]);
   const ring = [];
-  for (let i = 0; i < m; i += 2) ring.push(order[i]);
-  for (let i = m % 2 === 0 ? m - 1 : m - 2; i >= 1; i -= 2) ring.push(order[i]);
-  const next = new Array(m);
-  for (let i = 0; i < m; i++) next[ring[i]] = ring[(i + 1) % m];
+  for (let i = 0; i < order.length; i += 2) ring.push(order[i]);
+  for (let i = order.length % 2 === 0 ? order.length - 1 : order.length - 2; i >= 1; i -= 2) ring.push(order[i]);
+  for (let i = 0; i < ring.length; i++) next[ring[i]] = ring[(i + 1) % ring.length];
 
   const edge = (a, b) => gap(ys[a], ys[b]) * VIOLATION;
   let edgeSum = 0;
   for (let i = 0; i < m; i++) edgeSum += edge(i, next[i]);
-  let lens = cyclesOf(next);
-  let cost = edgeSum + structureCost(lens);
-
+  let st = structure(next, gender, k);
+  let cost = edgeSum + st.cost;
   let best = next.slice();
   let bestCost = cost;
   let bestEdge = edgeSum;
 
-  if (m >= 4) {
-    const iters = Math.min(80000, 4000 + 300 * m);
-    let T = 1500;
-    const cooling = Math.pow(0.2 / T, 1 / iters);
-    for (let it = 0; it < iters; it++, T *= cooling) {
-      const a = Math.floor(rnd() * m);
-      let b = Math.floor(rnd() * (m - 1));
-      if (b >= a) b++;
-      const na = next[a];
-      const nb = next[b];
-      // Солилт өөрөө рүүгээ заасан хүн үүсгэх бол алгасна.
-      if (nb === a || na === b) continue;
-      const dEdge = edge(a, nb) + edge(b, na) - edge(a, na) - edge(b, nb);
-      next[a] = nb;
-      next[b] = na;
-      const newLens = cyclesOf(next);
-      const newCost = edgeSum + dEdge + structureCost(newLens);
+  const total = (nx) => {
+    let e = 0;
+    for (let i = 0; i < m; i++) e += edge(i, nx[i]);
+    return e;
+  };
+  const predOf = (nx, c) => {
+    for (let i = 0; i < m; i++) if (nx[i] === c) return i;
+    return -1;
+  };
+  // Алтан хос солих нийлмэл алхам: (a,b) хосыг тойрогт оруулж, (c,d)-г тойргоос гаргаж алтан болгоно.
+  const goldenSwap = () => {
+    const pairs = [];
+    for (let i = 0; i < m; i++) if (next[next[i]] === i && i < next[i]) pairs.push(i);
+    if (!pairs.length) return null;
+    const a = pairs[Math.floor(rnd() * pairs.length)];
+    const b = next[a];
+    const free = [];
+    for (let i = 0; i < m; i++) if (next[next[i]] !== i) free.push(i);
+    if (free.length < 3) return null;
+    const c = free[Math.floor(rnd() * free.length)];
+    const opp = free.filter((i) => i !== c && gender[i] !== gender[c]);
+    if (!opp.length) return null;
+    const d = opp[Math.floor(rnd() * opp.length)];
+    const nx = next.slice();
+    for (const v of [c, d]) {
+      const pv = predOf(nx, v);
+      nx[pv] = nx[v];
+      nx[v] = v; // салгана (дараагийн хайлтад хуучин заалт үлдэхгүй)
+    }
+    nx[c] = d;
+    nx[d] = c;
+    const hosts = [];
+    for (let i = 0; i < m; i++) if (i !== a && i !== b && i !== c && i !== d && nx[nx[i]] !== i) hosts.push(i);
+    if (!hosts.length) return null;
+    const x = hosts[Math.floor(rnd() * hosts.length)];
+    const y = nx[x];
+    const [u, w] = rnd() < 0.5 ? [a, b] : [b, a];
+    nx[x] = u;
+    nx[u] = w;
+    nx[w] = y;
+    return nx;
+  };
+
+  const iters = Math.min(80000, 4000 + 300 * m);
+  let T = 1500;
+  const cooling = Math.pow(0.2 / T, 1 / iters);
+  for (let it = 0; it < iters; it++, T *= cooling) {
+    if (k > 0 && rnd() < 0.08) {
+      const nx = goldenSwap();
+      if (!nx) continue;
+      const nEdge = total(nx);
+      const nst = structure(nx, gender, k);
+      const newCost = nEdge + nst.cost;
       const delta = newCost - cost;
       if (delta <= 0 || rnd() < Math.exp(-delta / T)) {
+        for (let i = 0; i < m; i++) next[i] = nx[i];
         cost = newCost;
-        edgeSum += dEdge;
-        lens = newLens;
+        edgeSum = nEdge;
+        st = nst;
         if (cost < bestCost) {
           bestCost = cost;
           best = next.slice();
           bestEdge = edgeSum;
         }
-      } else {
-        next[a] = na;
-        next[b] = nb;
       }
+      continue;
+    }
+    const a = Math.floor(rnd() * m);
+    let b = Math.floor(rnd() * (m - 1));
+    if (b >= a) b++;
+    const na = next[a];
+    const nb = next[b];
+    if (nb === a || na === b) continue;
+    const dEdge = edge(a, nb) + edge(b, na) - edge(a, na) - edge(b, nb);
+    next[a] = nb;
+    next[b] = na;
+    const nst = structure(next, gender, k);
+    const newCost = edgeSum + dEdge + nst.cost;
+    const delta = newCost - cost;
+    if (delta <= 0 || rnd() < Math.exp(-delta / T)) {
+      cost = newCost;
+      edgeSum += dEdge;
+      st = nst;
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = next.slice();
+        bestEdge = edgeSum;
+      }
+    } else {
+      next[a] = na;
+      next[b] = nb;
     }
   }
-  const bestLens = cyclesOf(best);
-  return { next: best, violation: bestEdge / VIOLATION, cycles: bestLens.length, minCycle: Math.min(...bestLens) };
+  const fin = structure(best, gender, k);
+  const isPerm = new Set(best).size === m;
+  return { next: best, violation: bestEdge / VIOLATION, cycles: fin.cycles, valid: isPerm && fin.cost < BAD_CYCLE };
+}
+
+// 8 хүртэлх хүнтэй бол бүх боломжит хувилбарыг шалгаж хамгийн сайныг нь (тэнцүү бол санамсаргүй) сонгоно.
+function exactSmall(ps, k, rnd) {
+  const n = ps.length;
+  const p = [...Array(n).keys()];
+  let bestCost = Infinity;
+  let pick = null;
+  let ties = 0;
+  const seen = new Uint8Array(n);
+  const consider = () => {
+    seen.fill(0);
+    let twos = 0;
+    for (let i = 0; i < n; i++) {
+      if (p[i] === i) return;
+      if (seen[i]) continue;
+      let len = 0;
+      let j = i;
+      while (!seen[j]) {
+        seen[j] = 1;
+        j = p[j];
+        len++;
+      }
+      if (len === 2) {
+        if (ps[i].gender === ps[p[i]].gender) return;
+        twos++;
+      }
+    }
+    if (twos !== k) return;
+    let c = 0;
+    for (let i = 0; i < n; i++) c += gap(ps[i].year, ps[p[i]].year);
+    if (c < bestCost) {
+      bestCost = c;
+      pick = p.slice();
+      ties = 1;
+    } else if (c === bestCost) {
+      ties++;
+      if (rnd() * ties < 1) pick = p.slice();
+    }
+  };
+  const rec = (i) => {
+    if (i === n) return consider();
+    for (let j = i; j < n; j++) {
+      [p[i], p[j]] = [p[j], p[i]];
+      rec(i + 1);
+      [p[i], p[j]] = [p[j], p[i]];
+    }
+  };
+  rec(0);
+  if (!pick) return null;
+  const assign = {};
+  const golden = [];
+  for (let i = 0; i < n; i++) {
+    assign[ps[i].uid] = ps[pick[i]].uid;
+    if (pick[pick[i]] === i && i < pick[i]) golden.push([ps[i].uid, ps[pick[i]].uid]);
+  }
+  return { assign, golden, violation: bestCost };
 }
 
 // people: [{uid, code, gender}] → { assign: {giverUid: targetUid}, golden: [[uid, uid]], violation }
@@ -153,32 +283,28 @@ export function makeMatching(people, rnd = Math.random) {
   if (people.length < 3) throw new Error('Монита эхлүүлэхэд дор хаяж 3 оролцогч хэрэгтэй.');
   const ps = people.map((p) => ({ uid: p.uid, gender: p.gender, year: yearOf(p.code) }));
   const k = plannedGoldenCount(ps);
+  if (ps.length <= 8) {
+    const ex = exactSmall(ps, k, rnd);
+    if (ex) return ex;
+  }
   let best = null;
-  const trials = 40;
+  const trials = 12;
   for (let t = 0; t < trials; t++) {
-    const golden = pickGolden(ps, k, rnd);
-    const inGolden = new Set(golden.flat().map((p) => p.uid));
-    const rest = ps.filter((p) => !inGolden.has(p.uid));
-    const cover = cycleCover(rest, rnd);
-    const goldenGap = golden.reduce((s, [a, b]) => s + gap(a.year, b.year), 0);
-    const violation = goldenGap + cover.violation;
-    const score = violation * VIOLATION + cover.cycles;
-    if (!best || score < best.score) best = { score, golden, rest, cover, violation };
-    if (violation === 0 && t >= 2) break;
+    const res = optimize(ps, k, rnd, t < 2 ? 0 : 1 + (t / trials) * 3);
+    if (!res.valid) continue;
+    const score = res.violation * VIOLATION + res.cycles;
+    if (!best || score < best.score) best = { score, ...res };
+    if (res.violation === 0 && t >= 1) break;
   }
+  if (!best) throw new Error('Холболт үүсгэж чадсангүй. Дахин оролдоно уу.');
   const assign = {};
-  for (const [a, b] of best.golden) {
-    assign[a.uid] = b.uid;
-    assign[b.uid] = a.uid;
-  }
-  best.rest.forEach((p, i) => {
-    assign[p.uid] = best.rest[best.cover.next[i]].uid;
+  const golden = [];
+  ps.forEach((p, i) => {
+    const j = best.next[i];
+    assign[p.uid] = ps[j].uid;
+    if (best.next[j] === i && i < j) golden.push([p.uid, ps[j].uid]);
   });
-  return {
-    assign,
-    golden: best.golden.map(([a, b]) => [a.uid, b.uid]),
-    violation: best.violation,
-  };
+  return { assign, golden, violation: best.violation };
 }
 
 // Алтан эсэх: бие биенээ сонгосон хос.
@@ -200,14 +326,6 @@ export function giverOf(assign, uid) {
 export function planRemoval(assignIn, years, removed, rnd = Math.random) {
   const assign = { ...assignIn };
   const changes = [];
-  if (!(removed in assign)) {
-    const g = giverOf(assign, removed);
-    if (g) delete assign[g];
-    return { assign, changes };
-  }
-  const T = assign[removed];
-  const G = giverOf(assign, removed);
-  delete assign[removed];
   const yr = (u) => years[u];
   const cost = (a, b) => gap(yr(a), yr(b));
 
@@ -227,6 +345,26 @@ export function planRemoval(assignIn, years, removed, rnd = Math.random) {
     if (!cands.length) return null;
     return cands[Math.floor(rnd() * cands.length)];
   };
+
+  if (!(removed in assign)) {
+    // Хасагдсан хүнд монита байгаагүй ч түүнийг сонгосон хүн байвал тэр хүнийг тойрогт оруулна.
+    const g = giverOf(assign, removed);
+    if (g) {
+      delete assign[g];
+      const e = pickEdge(new Set([g]), (A, B) => cost(A, g) + cost(g, B));
+      if (e) {
+        const [A, B] = e;
+        assign[A] = g;
+        assign[g] = B;
+        changes.push({ uid: g, kind: 'reinserted', from: removed, to: B });
+        changes.push({ uid: A, kind: 'changed', from: B, to: g });
+      } else changes.push({ uid: g, kind: 'alone', from: removed, to: null });
+    }
+    return { assign, changes };
+  }
+  const T = assign[removed];
+  const G = giverOf(assign, removed);
+  delete assign[removed];
 
   if (G === T) {
     // Алтан хос: үлдсэн Y хүнийг өөр тойрогт оруулна.
@@ -263,6 +401,36 @@ export function planRemoval(assignIn, years, removed, rnd = Math.random) {
   return { assign, changes };
 }
 
+// Холболт бүрэн зөв эсэх: хүн бүр нэг монитатай, хүн бүрийг яг нэг хүн сонгосон, өөрийгөө сонгоогүй.
+// Бие биенээ сонгосон хос зөвхөн allowMutual дотор (алтан хос) байж болно.
+export function validateCycle(assign, allowMutual = new Set()) {
+  const givers = Object.keys(assign);
+  const set = new Set(givers);
+  const seen = new Set();
+  for (const g of givers) {
+    const t = assign[g];
+    if (!t || !set.has(t)) return `${g}-ийн монита оролцогч биш`;
+    if (t === g) return `${g} өөрийгөө сонгосон`;
+    if (seen.has(t)) return `${t} давхар сонгогдсон`;
+    seen.add(t);
+    if (assign[t] === g && givers.length > 2 && !(allowMutual.has(g) && allowMutual.has(t))) return `${g}, ${t} бие биенээ сонгосон`;
+  }
+  return null;
+}
+
+// Админд урьдчилан харуулах тайлан: ±1 жилийн дүрмээс гадуур холболт, алтан монитагийн тоо.
+export function matchReport(people, assign, goldenPairs) {
+  const years = Object.fromEntries(people.map((p) => [p.uid, yearOf(p.code)]));
+  let yearIssues = 0;
+  let maxGap = 0;
+  for (const g in assign) {
+    const d = Math.abs(years[g] - years[assign[g]]);
+    if (d > 1) yearIssues++;
+    if (d > maxGap) maxGap = d;
+  }
+  return { yearIssues, maxGap, golden: goldenPairs.length, goldenWanted: goldenCountFor(people.length) };
+}
+
 // Шалгалт (тест болон эхлүүлэхээс өмнө).
 export function validateMatching(people, assign, goldenPairs) {
   const ids = new Set(people.map((p) => p.uid));
@@ -276,6 +444,10 @@ export function validateMatching(people, assign, goldenPairs) {
   }
   const goldenSet = new Set(goldenPairs.flat());
   const byId = Object.fromEntries(people.map((p) => [p.uid, p]));
+  if (Object.keys(assign).length !== people.length) return 'Холболтын тоо оролцогчдын тоотой таарахгүй';
+  for (const [a, b] of goldenPairs) {
+    if (assign[a] !== b || assign[b] !== a) return 'Алтан хос бие биенээ сонгоогүй';
+  }
   for (const p of people) {
     if (isGolden(assign, p.uid)) {
       if (!goldenSet.has(p.uid)) return `${p.uid} алтан биш ч бие биенээ сонгосон`;

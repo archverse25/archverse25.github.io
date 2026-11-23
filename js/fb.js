@@ -4,9 +4,9 @@ import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, collection, query, where, onSnapshot, getDoc, getDocs, getDocFromCache, setDoc,
   deleteDoc, writeBatch, serverTimestamp, terminate, clearIndexedDbPersistence,
-} from '../vendor/firebase.js?v=11';
-import { firebaseConfig } from './config.js?v=11';
-import { planRemoval, yearOf } from './matching.js?v=11';
+} from '../vendor/firebase.js?v=12';
+import { firebaseConfig } from './config.js?v=12';
+
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
@@ -121,7 +121,12 @@ export const watch = {
     }, err),
   allNotifications: (cb, err) =>
     onSnapshot(collection(db, 'notifications'), (qs) => cb(qs.docs.map((d) => ({ id: d.id, ...d.data(est) }))), err),
+  // Код өөрөө харагдахгүй: зөвхөн имэйл, огноо.
+  allAdmins: (cb, err) =>
+    onSnapshot(collection(db, 'admins'), (qs) => cb(qs.docs.map((d) => ({ id: d.id, email: d.data().email, createdAt: d.data(est).createdAt }))), err),
 };
+
+export const removeAdmin = (uid) => deleteDoc(doc(db, 'admins', uid));
 
 // ---------- Оролцогч ----------
 export async function codeOwner(code) {
@@ -253,34 +258,31 @@ export function sendNotification(to, text) {
 }
 export const deleteNotification = (id) => deleteDoc(doc(db, 'notifications', id));
 
-// Оролцогч устгах. Монита явагдаж байвал холбоосыг нөхнө.
-export async function removeParticipant(user, { active, assign, users }) {
+// Оролцогч устгах. plan (matching.planRemoval) байвал холболтын өөрчлөлт, мэдэгдэл, устгалт бүгд
+// нэг batch-аар хамт хадгалагдана: интернэт тасарвал аль нь ч хагас хийгдэхгүй.
+export async function removeParticipant(user, { assign = {}, plan = null } = {}) {
   const uid = user.id;
-  if (active && (uid in assign || Object.values(assign).includes(uid))) {
-    const years = {};
-    users.forEach((u) => (years[u.id] = yearOf(u.studentCode)));
-    const plan = planRemoval(assign, years, uid);
-    const writes = [];
+  const b = writeBatch(db);
+  if (plan) {
     for (const g of Object.keys(plan.assign)) {
-      if (plan.assign[g] !== assign[g]) writes.push(() => setDoc(doc(db, 'assignments', g), { target: plan.assign[g], k: newKey() }));
+      if (plan.assign[g] !== assign[g]) b.set(doc(db, 'assignments', g), { target: plan.assign[g], k: newKey() });
     }
     for (const g of Object.keys(assign)) {
-      if (!(g in plan.assign) && g !== uid) writes.push(() => deleteDoc(doc(db, 'assignments', g)));
+      if (!(g in plan.assign) && g !== uid) b.delete(doc(db, 'assignments', g));
     }
-    await inChunks(writes);
-    await deleteDoc(doc(db, 'assignments', uid));
-    await inChunks(plan.changes.filter((c) => NOTICE[c.kind]).map((c) => () => sendNotification(c.uid, NOTICE[c.kind])));
-  } else {
-    await deleteDoc(doc(db, 'assignments', uid)).catch(() => {});
+    for (const c of plan.changes) {
+      if (NOTICE[c.kind]) b.set(doc(collection(db, 'notifications')), { to: c.uid, text: NOTICE[c.kind], createdAt: serverTimestamp() });
+    }
   }
-  const mine = await getDocs(query(collection(db, 'letters'), where('t', '==', uid))).catch(() => null);
-  if (mine) await inChunks(mine.docs.map((d) => () => deleteDoc(d.ref)));
-  const b = writeBatch(db);
+  b.delete(doc(db, 'assignments', uid));
   b.delete(doc(db, 'users', uid));
   b.delete(doc(db, 'photos', uid));
   b.delete(doc(db, 'thumbs', uid));
   if (user.studentCode) b.delete(doc(db, 'studentCodes', user.studentCode));
   await b.commit();
+  // Түүнд ирсэн захидлууд (өөр хэнд ч харагдахгүй тул дараа нь цэвэрлэнэ).
+  const mine = await getDocs(query(collection(db, 'letters'), where('t', '==', uid))).catch(() => null);
+  if (mine) await inChunks(mine.docs.map((d) => () => deleteDoc(d.ref).catch(() => {})));
 }
 
 // Зураг/PDF хуудсуудыг хадгална (зар болон өдрийн сэдэвт).

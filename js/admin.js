@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay } from './ui.js?v=11';
-import * as fb from './fb.js?v=11';
-import { makeMatching, validateMatching, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=11';
-import { fileToPages } from './media.js?v=11';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay } from './ui.js?v=12';
+import * as fb from './fb.js?v=12';
+import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=12';
+import { fileToPages } from './media.js?v=12';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
@@ -21,11 +21,16 @@ export function startAdminSubs(S, render, loud) {
     S.admin.notifications = list.sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
     render();
   }, loud('notifications'));
+  const u5 = fb.watch.allAdmins((list) => {
+    S.admin.admins = list.sort((a, b) => toMillis(a.createdAt) - toMillis(b.createdAt));
+    render();
+  }, () => {});
   return () => {
     u1();
     u2();
     u3();
     u4();
+    u5();
   };
 }
 
@@ -153,7 +158,7 @@ async function exportExcel(ctx, btn) {
   if (!users.length) return toast('Оролцогч алга байна.');
   btn.disabled = true;
   try {
-    const XLSX = await import('../vendor/xlsx.js?v=11');
+    const XLSX = await import('../vendor/xlsx.js?v=12');
     const byId = byIdMap(S);
     const assign = S.admin.assign;
     const active = S.config.state === 'active';
@@ -212,18 +217,51 @@ async function details(ctx, u) {
   { title: 'Оролцогч', wide: true });
 }
 
+// Устгахаас өмнө хэний монита яаж өөрчлөгдөхийг тооцоолж шалгана.
+function removalPlan(S, u) {
+  const assign = S.admin.assign || {};
+  if (S.config.state !== 'active' || !(u.id in assign || Object.values(assign).includes(u.id))) return null;
+  const years = {};
+  S.admin.users.forEach((x) => (years[x.id] = yearOf(x.studentCode)));
+  const plan = planRemoval(assign, years, u.id);
+  const golden = new Set(Object.keys(assign).filter((g) => isGolden(assign, g)));
+  const err = validateCycle(plan.assign, golden);
+  if (err) throw new Error('Холболт нөхөхөд алдаа гарлаа: ' + err);
+  return plan;
+}
+
+const CHANGE_LABEL = { replaced: 'устгагдсан хүний монитаг авна', reinserted: 'шинэ монитатай болно', changed: 'монита нь өөрчлөгдөнө' };
+
 async function remove(ctx, u) {
   const { S } = ctx;
-  const active = S.config.state === 'active';
+  let plan;
+  try {
+    plan = removalPlan(S, u);
+  } catch (e) {
+    toast(e.message, 'error');
+    return;
+  }
+  const byId = byIdMap(S);
+  const nm = (id) => (byId[id] ? shortName(byId[id]) : '—');
+  const rows = plan ? plan.changes.filter((c) => CHANGE_LABEL[c.kind]) : [];
+  const extra = rows.length
+    ? h('div', { class: 'change-list' },
+      h('p', { class: 'muted small' }, 'Холболтын өөрчлөлт (эдгээр хүмүүст мэдэгдэл очно):'),
+      h('ul', null, rows.map((c) =>
+        h('li', null, h('b', null, nm(c.uid)), ` ${CHANGE_LABEL[c.kind]}: `, h('b', null, nm(c.to))))))
+    : null;
   const ok = await confirmDialog({
     title: 'Оролцогчийг устгах уу?',
-    body: `${fullName(u)} (${u.studentCode})-ийн бүртгэл устна.` + (active ? ' Түүнийг сонгосон хүнд мэдэгдэл очиж, холболт нөхөгдөнө.' : ''),
+    body: `${fullName(u)} (${u.studentCode})-ийн бүртгэл устна.`,
+    extra,
     ok: 'Устгах',
     danger: true,
   });
   if (!ok) return;
   try {
-    await fb.removeParticipant(u, { active, assign: S.admin.assign, users: people(S) });
+    // Хүлээх хооронд холболт өөрчлөгдсөн байж болзошгүй тул дахин тооцоолно.
+    const fresh = removalPlan(S, u);
+    await fb.removeParticipant(u, { assign: S.admin.assign || {}, plan: fresh });
     toast('Устгалаа');
   } catch (e) {
     console.error(e);
@@ -265,7 +303,72 @@ function monitaSection(ctx) {
   const status = h('section', { class: 'panel' }, h('h2', { class: 'h-section' }, 'Төлөв'), body);
   const days = ctx.keep('admin:days', () => daysEditor(ctx));
   days.sync();
-  return [status, days];
+  return [status, days, adminsPanel(ctx)];
+}
+
+// Админууд: хэн админ болсныг харах, хасах, шинээр админ болохыг хаах.
+function adminsPanel(ctx) {
+  const { S } = ctx;
+  const list = S.admin.admins || [];
+  const locked = !!S.config.adminLocked;
+  const lockBtn = h('button', { class: 'btn ' + (locked ? 'btn-ghost' : 'btn-primary'), type: 'button' },
+    locked ? 'Админ кодыг нээх' : 'Админ кодыг хаах');
+  lockBtn.addEventListener('click', async () => {
+    lockBtn.disabled = true;
+    try {
+      await fb.updateConfig({ adminLocked: !locked });
+      toast(locked ? 'Админ код нээгдлээ' : 'Админ код хаагдлаа');
+    } catch (e) {
+      toast(errText(e), 'error');
+    } finally {
+      lockBtn.disabled = false;
+    }
+  });
+  return h('section', { class: 'panel admins-panel' },
+    h('h2', { class: 'h-section' }, 'Админууд'),
+    h('ul', { class: 'admin-list' }, list.map((a) => {
+      const self = a.id === S.user.uid;
+      return h('li', null,
+        h('div', null,
+          h('p', { class: 'account-email' }, a.email || '—', self ? h('span', { class: 'muted small' }, ' (та)') : null),
+          h('p', { class: 'muted small' }, fmtDate(a.createdAt))),
+        self ? null : h('button', {
+          class: 'btn btn-small btn-danger', type: 'button', onclick: async () => {
+            const ok = await confirmDialog({ title: 'Админ эрхийг хасах уу?', body: `${a.email}-ийн админ эрх хасагдана.`, ok: 'Хасах', danger: true });
+            if (!ok) return;
+            try {
+              await fb.removeAdmin(a.id);
+              toast('Админ эрх хасагдлаа');
+            } catch (e) {
+              toast(errText(e), 'error');
+            }
+          },
+        }, 'Хасах'));
+    })),
+    h('p', { class: 'muted' }, locked
+      ? 'Админ код хаалттай: кодыг мэдсэн ч шинээр хэн ч админ болох боломжгүй.'
+      : 'Админ код нээлттэй: кодыг мэдсэн хүн бүр админ болж чадна. Бүх админ нэмэгдсэний дараа хаахыг зөвлөж байна.'),
+    h('div', { class: 'actions' }, lockBtn));
+}
+
+// Урьдчилсан тайлан: ±1 жилийн дүрэм, алтан монитагийн тоо.
+function previewNotes(users) {
+  const ppl = users.map((u) => ({ uid: u.id, code: u.studentCode, gender: u.gender }));
+  let m;
+  try {
+    m = makeMatching(ppl);
+  } catch (_) {
+    return null;
+  }
+  const r = matchReport(ppl, m.assign, m.golden);
+  const notes = [];
+  notes.push(`Алтан монита: ${r.golden}` + (r.golden < r.goldenWanted
+    ? ` (дүрмээр ${r.goldenWanted} байх ёстой ч хүйсийн харьцаа эсвэл оролцогчдын тооноос болж ${r.golden} үүснэ)`
+    : ''));
+  if (r.yearIssues > 0) {
+    notes.push(`${r.yearIssues} холболт ±1 жилийн дүрэмд багтахгүй: ойролцоо онтой хүн хүрэлцэхгүй тул хамгийн ойр онтой хүнтэй холбогдоно (хамгийн их зөрүү ${r.maxGap} жил).`);
+  } else notes.push('Бүх холболт ±1 жилийн дүрэмд багтана.');
+  return h('ul', { class: 'change-list' }, notes.map((t) => h('li', null, t)));
 }
 
 async function start(ctx, btn) {
@@ -274,6 +377,7 @@ async function start(ctx, btn) {
   const ok = await confirmDialog({
     title: 'Монитаг эхлүүлэх үү?',
     body: `${users.length} оролцогчийг холбоно. Эхэлсний дараа шинээр бүртгүүлэх, мэдээлэл засах боломжгүй.`,
+    extra: previewNotes(users),
     ok: 'Эхлүүлэх',
   });
   if (!ok) return;

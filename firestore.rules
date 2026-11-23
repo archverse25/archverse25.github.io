@@ -11,6 +11,7 @@ service cloud.firestore {
     function isOpen() { return !hasCfg() || get(cfgPath()).data.state == 'registration'; }
     function isActive() { return hasCfg() && get(cfgPath()).data.state == 'active'; }
     function isFinal() { return isActive() && get(cfgPath()).data.finalDay == true; }
+    function adminLocked() { return hasCfg() && get(cfgPath()).data.get('adminLocked', false) == true; }
 
     function assignPath(uid) { return /databases/$(database)/documents/assignments/$(uid); }
     function iChose(uid) { return exists(assignPath(me())) && get(assignPath(me())).data.target == uid; }
@@ -39,7 +40,7 @@ service cloud.firestore {
     match /admins/{uid} {
       allow get: if signedIn() && (me() == uid || isAdmin());
       allow list: if isAdmin();
-      allow create: if signedIn() && me() == uid
+      allow create: if signedIn() && me() == uid && !adminLocked()
         && request.resource.data.keys().hasOnly(['code', 'email', 'createdAt'])
         && request.resource.data.code is string
         && hashing.sha256(request.resource.data.code).toHexString().lower() == 'f68808f1d8413410883bf62d3df048385676aaeca1aff3162a4f0736b38e0893';
