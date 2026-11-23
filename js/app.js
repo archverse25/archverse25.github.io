@@ -1,10 +1,10 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay,
   toMillis, errText,
-} from './ui.js?v=9';
-import * as fb from './fb.js?v=9';
-import { adminContent, startAdminSubs } from './admin.js?v=9';
-import { fileToAvatar, thumbFromDataUrl } from './media.js?v=9';
+} from './ui.js?v=10';
+import * as fb from './fb.js?v=10';
+import { adminContent, startAdminSubs } from './admin.js?v=10';
+import { fileToAvatar, thumbFromDataUrl } from './media.js?v=10';
 
 // ---------- Төлөв ----------
 const S = {
@@ -517,7 +517,7 @@ function tabbar(tabs) {
 
 function tabContent() {
   if (S.tab === 'admin' && S.isAdmin) {
-    return adminContent({ S, keep, forget, render, adFigure, titleBlock });
+    return adminContent({ S, keep, forget, render, adFigure, titleBlock, cell });
   }
   if (!S.profile) return registerContent();
   if (S.tab === 'profile') return profileContent();
@@ -663,12 +663,15 @@ function avatar(p, photo, cls = 'avatar') {
   return h('span', { class: cls + ' avatar-empty', 'aria-hidden': 'true' }, initial(p && p.firstName));
 }
 
-function titleBlock(title, p, { golden = false, note = null, extra = null, photo } = {}) {
+// variant: 'target' — таны бэлэг өгөх хүн, 'giver' — танд бэлэг өгсөн хүн.
+const VARIANT_TAG = { target: 'Та бэлэг өгнө', giver: 'Танд бэлэг өгсөн' };
+function titleBlock(title, p, { golden = false, note = null, extra = null, photo, variant = null } = {}) {
   const pic = photo !== undefined ? photo : S.photos[p.uid || p.id];
-  return h('article', { class: 'tblock' + (golden ? ' golden' : '') },
+  return h('article', { class: 'tblock' + (golden ? ' golden' : '') + (variant ? ' v-' + variant : '') },
     h('header', { class: 'tb-head' },
       h('div', { class: 'tb-who' }, avatar(p, pic), h('h2', { class: 'tb-title' }, title)),
-      golden ? h('span', { class: 'tb-badge' }, '✦ Алтан монита') : null),
+      golden ? h('span', { class: 'tb-badge' }, '✦ Алтан монита')
+        : variant ? h('span', { class: 'tb-tag' }, VARIANT_TAG[variant]) : null),
     note ? h('p', { class: 'tb-note' }, note) : null,
     h('div', { class: 'tb-grid' },
       cell('Овог', p.lastName),
@@ -864,13 +867,13 @@ function targetSection() {
   if (S.assignment === undefined || (S.targetId && S.target === undefined)) return waiting();
   if (!S.target) return h('p', { class: 'note' }, 'Танд одоогоор монита сонгогдоогүй байна.');
   const key = 'm:' + ((S.assignment && S.assignment.k) || S.targetId);
-  return wrapped(key, titleBlock('Таны монита', S.target), 'Таны монита хэн бэ?');
+  return wrapped(key, titleBlock('Таны монита', S.target, { variant: 'target' }), 'Таны монита хэн бэ?');
 }
 
 function revealSection() {
   if (S.giverId === undefined || (S.giverId && S.giver === undefined)) return waiting();
   if (!S.giver) return null;
-  return wrapped('g:' + S.giverId, titleBlock('Таныг сонгосон хүн', S.giver), 'Таныг хэн сонгосон бэ?');
+  return wrapped('g:' + S.giverId, titleBlock('Таныг сонгосон хүн', S.giver, { variant: 'giver' }), 'Таныг хэн сонгосон бэ?');
 }
 
 // ---------- Бүртгэл ба профайл ----------
@@ -994,7 +997,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=9'));
+    ({ AVATARS: list } = await import('./avatars.js?v=10'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;

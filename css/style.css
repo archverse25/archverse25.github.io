@@ -365,6 +365,15 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 .photo-control { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
 .photo-side { display: flex; flex-direction: column; gap: 8px; }
 .tb-badge { font: 400 13px var(--display); letter-spacing: .04em; padding: 6px 12px; border-radius: 999px; color: var(--bg); background: var(--gold-grad); white-space: nowrap; }
+/* "Таны монита" ба "Таныг сонгосон хүн" картыг ялгах */
+.tb-tag { font: 500 13px var(--display); padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
+.tblock.v-target { border: 2px solid transparent; background: linear-gradient(#2F1D61, #2F1D61) padding-box, linear-gradient(120deg, #7CF6FF, #2E8BFF 55%, #8F6BFF) border-box; }
+.tblock.v-target .tb-head { background: rgba(124, 246, 255, .09); }
+.tblock.v-target .tb-tag { background: rgba(124, 246, 255, .16); color: #BFFBFF; }
+.tblock.v-giver { border: 2px solid transparent; background: linear-gradient(#3A1A55, #3A1A55) padding-box, linear-gradient(120deg, #FF6FCF, #FF9DB0 55%, #FFC6A5) border-box; }
+.tblock.v-giver .tb-head { background: rgba(255, 111, 207, .12); }
+.tblock.v-giver .tb-tag { background: rgba(255, 111, 207, .2); color: #FFD3EE; }
+.tblock.v-giver .tb-cell, .tblock.v-giver .tb-head { border-color: rgba(255, 180, 220, .2); }
 .tb-note { padding: 12px 18px; border-bottom: 1px solid var(--line); font-size: 15px; }
 .tb-grid { display: grid; grid-template-columns: 1fr 1fr; }
 .tb-cell { padding: 12px 18px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; border-bottom: 1px solid var(--line); }

@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay } from './ui.js?v=9';
-import * as fb from './fb.js?v=9';
-import { makeMatching, validateMatching, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=9';
-import { fileToPages } from './media.js?v=9';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay } from './ui.js?v=10';
+import * as fb from './fb.js?v=10';
+import { makeMatching, validateMatching, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=10';
+import { fileToPages } from './media.js?v=10';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
@@ -153,7 +153,7 @@ async function exportExcel(ctx, btn) {
   if (!users.length) return toast('Оролцогч алга байна.');
   btn.disabled = true;
   try {
-    const XLSX = await import('../vendor/xlsx.js?v=9');
+    const XLSX = await import('../vendor/xlsx.js?v=10');
     const byId = byIdMap(S);
     const assign = S.admin.assign;
     const active = S.config.state === 'active';
@@ -202,8 +202,11 @@ async function details(ctx, u) {
   const giver = byId[giverOf(assign, u.id)];
   const golden = isGolden(assign, u.id);
   openDialog(h('div', { class: 'stack' },
-    ctx.titleBlock(fullName(u), u, { golden, photo }),
-    h('p', { class: 'muted small' }, u.email || ''),
+    ctx.titleBlock(fullName(u), u, {
+      golden,
+      photo,
+      extra: ctx.cell('Gmail', u.email ? h('a', { href: 'mailto:' + u.email, class: 'tel' }, u.email) : '—', 'wide'),
+    }),
     t ? h('p', { class: 'detail-line' }, 'Сонгосон монита: ', h('strong', null, `${t.studentCode} ${shortName(t)}`)) : null,
     giver ? h('p', { class: 'detail-line' }, 'Түүнийг сонгосон: ', h('strong', null, `${giver.studentCode} ${shortName(giver)}`)) : null),
   { title: 'Оролцогч', wide: true });
