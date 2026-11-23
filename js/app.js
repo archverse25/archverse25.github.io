@@ -1,10 +1,10 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay,
   toMillis, errText,
-} from './ui.js?v=6';
-import * as fb from './fb.js?v=6';
-import { adminContent, startAdminSubs } from './admin.js?v=6';
-import { fileToAvatar, thumbFromDataUrl } from './media.js?v=6';
+} from './ui.js?v=7';
+import * as fb from './fb.js?v=7';
+import { adminContent, startAdminSubs } from './admin.js?v=7';
+import { fileToAvatar, thumbFromDataUrl } from './media.js?v=7';
 
 // ---------- Төлөв ----------
 const S = {
@@ -919,8 +919,10 @@ function photoControl() {
   const pickLabel = h('span', null, 'Зураг оруулах');
   const pick = h('label', { class: 'btn btn-small', for: 'photo-file' }, svg(icons.upload), pickLabel);
   const del = h('button', { class: 'btn btn-small btn-danger', type: 'button' }, 'Зураг устгах');
+  const preset = h('button', { class: 'btn btn-small', type: 'button' }, svg(icons.grid), 'Бэлэн зураг сонгох');
   const status = h('p', { class: 'muted small', role: 'status' });
-  const actions = h('div', { class: 'actions' }, input, pick, del);
+  const actions = h('div', { class: 'actions' }, preset, input, pick, del);
+  preset.addEventListener('click', () => openAvatarPicker());
   let last;
 
   input.addEventListener('change', async () => {
@@ -963,10 +965,42 @@ function photoControl() {
     pic.replaceChildren(avatar(S.profile, photo, 'avatar-lg'));
     pickLabel.textContent = photo ? 'Зураг солих' : 'Зураг оруулах';
     pick.style.display = locked ? 'none' : '';
+    preset.style.display = locked ? 'none' : '';
     del.style.display = locked || !photo ? 'none' : '';
     status.textContent = locked ? 'Монита явагдаж байх үед зургаа солих боломжгүй.' : '';
   };
   return el;
+}
+
+async function openAvatarPicker() {
+  let list;
+  try {
+    ({ AVATARS: list } = await import('./avatars.js?v=7'));
+  } catch (e) {
+    toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
+    return;
+  }
+  const current = S.photos[S.user.uid];
+  let close;
+  const grid = h('div', { class: 'avatar-grid', role: 'list' }, list.map((a) => {
+    const b = h('button', {
+      class: 'avatar-opt', type: 'button', role: 'listitem', 'aria-label': 'Энэ зургийг сонгох', 'aria-pressed': a.src === current ? 'true' : 'false',
+    }, h('img', { src: a.src, alt: '' }));
+    b.addEventListener('click', async () => {
+      grid.querySelectorAll('.avatar-opt').forEach((x) => (x.disabled = true));
+      try {
+        await fb.savePhoto(S.user.uid, a.src, a.src);
+        toast('Профайл зураг хадгалагдлаа');
+        close();
+      } catch (e) {
+        console.error(e);
+        toast(errText(e, 'Зураг хадгалж чадсангүй'), 'error');
+        grid.querySelectorAll('.avatar-opt').forEach((x) => (x.disabled = false));
+      }
+    });
+    return b;
+  }));
+  close = openDialog(grid, { title: 'Бэлэн зураг сонгох', wide: true });
 }
 
 export function normalizeCode(v) {

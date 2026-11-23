@@ -302,6 +302,13 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 .avatar-cube svg { width: 100%; height: 100%; }
 .tblock.placeholder { border-style: dashed; border-color: rgba(255, 255, 255, .3); }
 .tb-empty { padding: 18px; color: var(--muted); }
+.avatar-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (min-width: 560px) { .avatar-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; } }
+.avatar-opt { padding: 3px; border: 2.5px solid transparent; border-radius: 50%; background: none; cursor: pointer; transition: transform .15s, border-color .15s; }
+.avatar-opt img { width: 100%; aspect-ratio: 1; border-radius: 50%; display: block; }
+.avatar-opt:hover { transform: scale(1.05); }
+.avatar-opt[aria-pressed='true'] { border-color: var(--cyan); }
+.avatar-opt:disabled { opacity: .6; cursor: progress; }
 .photo-control { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
 .photo-side { display: flex; flex-direction: column; gap: 8px; }
 .tb-badge { font: 400 13px var(--display); letter-spacing: .04em; padding: 6px 12px; border-radius: 999px; color: var(--bg); background: var(--gold-grad); white-space: nowrap; }
