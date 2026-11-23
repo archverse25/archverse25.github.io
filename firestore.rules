@@ -1,0 +1,110 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function isAdmin() { return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+
+    function cfgPath() { return /databases/$(database)/documents/config/main; }
+    function hasCfg() { return exists(cfgPath()); }
+    function isOpen() { return !hasCfg() || get(cfgPath()).data.state == 'registration'; }
+    function isActive() { return hasCfg() && get(cfgPath()).data.state == 'active'; }
+    function isFinal() { return isActive() && get(cfgPath()).data.finalDay == true; }
+
+    function assignPath(uid) { return /databases/$(database)/documents/assignments/$(uid); }
+    function iChose(uid) { return exists(assignPath(me())) && get(assignPath(me())).data.target == uid; }
+    function choseMe(uid) { return exists(assignPath(uid)) && get(assignPath(uid)).data.target == me(); }
+
+    function validProfile(d, uid) {
+      return d.keys().hasOnly(['uid', 'email', 'studentCode', 'gender', 'lastName', 'firstName', 'phone', 'wishes', 'createdAt', 'updatedAt'])
+        && d.keys().hasAll(['uid', 'email', 'studentCode', 'gender', 'lastName', 'firstName', 'phone', 'wishes'])
+        && d.uid == uid
+        && d.email == request.auth.token.email
+        && d.studentCode is string && d.studentCode.matches('^B[0-9]{9}$')
+        && d.gender in ['male', 'female']
+        && d.lastName is string && d.lastName.size() > 0 && d.lastName.size() <= 60
+        && d.firstName is string && d.firstName.size() > 0 && d.firstName.size() <= 60
+        && d.phone is string && d.phone.matches('^[0-9]{8}$')
+        && d.wishes is string && d.wishes.size() <= 1000;
+    }
+
+    // Тохиргоо: төлөв, өдрүүд, сэдэв
+    match /config/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Админ: зөвхөн тусгай кодоор
+    match /admins/{uid} {
+      allow get: if signedIn() && (me() == uid || isAdmin());
+      allow list: if isAdmin();
+      allow create: if signedIn() && me() == uid
+        && request.resource.data.keys().hasOnly(['code', 'email', 'createdAt'])
+        && request.resource.data.code is string
+        && hashing.sha256(request.resource.data.code).toHexString().lower() == 'f68808f1d8413410883bf62d3df048385676aaeca1aff3162a4f0736b38e0893';
+      allow delete: if isAdmin();
+    }
+
+    // Оролцогчийн мэдээлэл
+    match /users/{uid} {
+      allow get: if signedIn() && (
+        me() == uid
+        || isAdmin()
+        || (isActive() && iChose(uid))
+        || (isFinal() && choseMe(uid))
+      );
+      allow list: if isAdmin();
+      allow create: if signedIn() && me() == uid && isOpen()
+        && validProfile(request.resource.data, uid)
+        && getAfter(/databases/$(database)/documents/studentCodes/$(request.resource.data.studentCode)).data.uid == uid;
+      allow update: if signedIn() && me() == uid && isOpen()
+        && validProfile(request.resource.data, uid)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && getAfter(/databases/$(database)/documents/studentCodes/$(request.resource.data.studentCode)).data.uid == uid
+        && (request.resource.data.studentCode == resource.data.studentCode
+            || !existsAfter(/databases/$(database)/documents/studentCodes/$(resource.data.studentCode)));
+      allow delete: if isAdmin();
+    }
+
+    // Оюутны код давхцахгүй
+    match /studentCodes/{code} {
+      allow get: if signedIn();
+      allow create: if signedIn() && isOpen()
+        && code.matches('^B[0-9]{9}$')
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == me()
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.studentCode == code;
+      allow delete: if isAdmin()
+        || (signedIn() && isOpen() && resource.data.uid == me()
+            && (!existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)) || getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.studentCode != code));
+    }
+
+    // Хэн хэнийг сонгосон
+    match /assignments/{giver} {
+      allow get: if isAdmin() || (signedIn() && me() == giver && isActive());
+      allow list: if isAdmin() || (signedIn() && isFinal() && resource.data.target == me());
+      allow write: if isAdmin();
+    }
+
+    // Мэдэгдэл
+    match /notifications/{id} {
+      allow read: if isAdmin() || (signedIn() && (resource.data.to == me() || resource.data.to == 'all'));
+      allow create, delete: if isAdmin();
+    }
+
+    // Нүүр хуудасны зар
+    match /announcements/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /announcementFiles/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
