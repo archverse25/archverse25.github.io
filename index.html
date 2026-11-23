@@ -7,10 +7,23 @@
   <meta name="description" content="Архитектурын ангийн шинэ жилийн монита">
   <title>Монита</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <script>
+    // iPhone дээр нүүр дэлгэцийн икон Safari-д нээгдэх ёстой (тусдаа апп болбол Google нэвтрэлт ажиллахгүй).
+    (function () {
+      var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      if (!ios) {
+        var l = document.createElement('link');
+        l.rel = 'manifest';
+        l.href = 'manifest.json';
+        document.head.appendChild(l);
+      }
+    })();
+  </script>
   <link rel="preload" href="fonts/tektur-cyrillic-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="fonts/exo-2-cyrillic-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/style.css?v=4">
-  <script type="module" src="js/app.js?v=4"></script>
+  <link rel="stylesheet" href="css/style.css?v=5">
+  <script type="module" src="js/app.js?v=5"></script>
 </head>
 <body>
   <div id="app">

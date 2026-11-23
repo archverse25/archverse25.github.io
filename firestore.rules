@@ -103,6 +103,24 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Нэргүй захидал. t = бэлэг авагч; 'down' = t-г сонгосон хүнээс, 'up' = t-ээс өөрийг нь сонгосон хүн рүү.
+    // Илгээгчийн нэр хадгалагдахгүй; k нь тухайн холболтын түлхүүр.
+    match /letters/{id} {
+      allow read: if isAdmin() || (signedIn() && isActive()
+        && (resource.data.t == me() || iChose(resource.data.t)));
+      allow create: if signedIn() && isActive()
+        && request.resource.data.keys().hasOnly(['t', 'dir', 'k', 'text', 'createdAt'])
+        && request.resource.data.t is string
+        && request.resource.data.k is string && request.resource.data.k.size() <= 40
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 500
+        && request.resource.data.createdAt == request.time
+        && ((request.resource.data.dir == 'up' && request.resource.data.t == me())
+            || (request.resource.data.dir == 'down' && iChose(request.resource.data.t)
+                && request.resource.data.k == get(assignPath(me())).data.k));
+      allow delete: if isAdmin();
+    }
+
     // Мэдэгдэл
     match /notifications/{id} {
       allow read: if isAdmin() || (signedIn() && (resource.data.to == me() || resource.data.to == 'all'));

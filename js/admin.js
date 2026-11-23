@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText } from './ui.js?v=4';
-import * as fb from './fb.js?v=4';
-import { makeMatching, validateMatching, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=4';
-import { fileToPages } from './media.js?v=4';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText } from './ui.js?v=5';
+import * as fb from './fb.js?v=5';
+import { makeMatching, validateMatching, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=5';
+import { fileToPages } from './media.js?v=5';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
@@ -94,7 +94,9 @@ function peopleSection(ctx) {
       S.admin.q = inp.value.trim().toLowerCase();
       ctx.render();
     });
-    return h('div', { class: 'searchbox' }, svg(icons.search), inp);
+    const exportBtn = h('button', { class: 'btn btn-small', type: 'button' }, svg(icons.download), 'Excel татах');
+    exportBtn.addEventListener('click', () => exportExcel(ctx, exportBtn));
+    return h('div', { class: 'people-tools' }, h('div', { class: 'searchbox' }, svg(icons.search), inp), exportBtn);
   });
 
   const q = S.admin.q;
@@ -133,6 +135,47 @@ function peopleSection(ctx) {
       rows.length ? null : h('p', { class: 'empty' }, 'Хайлтад тохирох оролцогч алга.'))
     : h('p', { class: 'empty' }, 'Одоогоор бүртгүүлсэн оролцогч алга.');
   return [stats, search, table];
+}
+
+async function exportExcel(ctx, btn) {
+  const { S } = ctx;
+  const users = people(S);
+  if (!users.length) return toast('Оролцогч алга байна.');
+  btn.disabled = true;
+  try {
+    const XLSX = await import('../vendor/xlsx.js');
+    const byId = byIdMap(S);
+    const assign = S.admin.assign;
+    const active = S.config.state === 'active';
+    const rows = users.map((u, i) => {
+      const t = byId[assign[u.id]];
+      return {
+        '№': i + 1,
+        'Оюутны код': u.studentCode,
+        'Овог': u.lastName,
+        'Нэр': u.firstName,
+        'Хүйс': u.gender === 'male' ? 'Эрэгтэй' : 'Эмэгтэй',
+        'Утас': u.phone,
+        'Имэйл': u.email || '',
+        'Сонирхол, хүсэж буй бэлэг': u.wishes || '',
+        'Монитагийн код': t ? t.studentCode : '',
+        'Монитагийн овог нэр': t ? `${t.lastName} ${t.firstName}` : '',
+        'Алтан монита': active && isGolden(assign, u.id) ? 'Тийм' : '',
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [5, 14, 16, 16, 10, 12, 26, 40, 16, 24, 12].map((w) => ({ wch: w }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Оролцогчид');
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    XLSX.writeFile(wb, `monita-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.xlsx`);
+  } catch (e) {
+    console.error(e);
+    toast(errText(e, 'Excel файл үүсгэж чадсангүй'), 'error');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 async function details(ctx, u) {

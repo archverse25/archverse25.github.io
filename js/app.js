@@ -1,10 +1,10 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial,
   toMillis, errText,
-} from './ui.js?v=4';
-import * as fb from './fb.js?v=4';
-import { adminContent, startAdminSubs } from './admin.js?v=4';
-import { fileToAvatar } from './media.js?v=4';
+} from './ui.js?v=5';
+import * as fb from './fb.js?v=5';
+import { adminContent, startAdminSubs } from './admin.js?v=5';
+import { fileToAvatar } from './media.js?v=5';
 
 // ---------- Төлөв ----------
 const S = {
@@ -21,6 +21,8 @@ const S = {
   notifications: [],
   announcements: [],
   photos: {},
+  inbox: [],
+  outbox: [],
   tab: tabFromHash(),
   editing: false,
   seenAtOpen: 0,
@@ -89,6 +91,56 @@ function patch(parent, kids) {
   });
 }
 
+// ---------- Утсанд суулгах ----------
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installEvt = e;
+  render();
+});
+window.addEventListener('appinstalled', () => {
+  installEvt = null;
+  toast('Утсандаа суулгалаа');
+  render();
+});
+const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const IS_MOBILE = IS_IOS || /Android/i.test(navigator.userAgent);
+
+function installPanel() {
+  if (fb.isStandalone()) return null;
+  if (!installEvt && !IS_MOBILE) return null;
+  let body;
+  if (installEvt) {
+    body = [
+      h('p', { class: 'muted' }, 'Нүүр дэлгэцэнд Монитагийн икон нэмэгдэж, апп шиг нээгдэнэ.'),
+      h('div', { class: 'actions' }, h('button', {
+        class: 'btn btn-primary btn-small', type: 'button', onclick: async () => {
+          const ev = installEvt;
+          if (!ev) return;
+          ev.prompt();
+          try {
+            await ev.userChoice;
+          } catch (_) {
+            /* */
+          }
+          installEvt = null;
+          render();
+        },
+      }, 'Суулгах')),
+    ];
+  } else if (IS_IOS) {
+    body = [h('p', { class: 'muted' }, 'Safari-ийн доод талын «Хуваалцах» товч (□↑) → «Add to Home Screen» (Нүүр дэлгэцэнд нэмэх) гэснийг дарна.')];
+  } else {
+    body = [h('p', { class: 'muted' }, 'Хөтчийн цэс (⋮) → «Add to Home screen» эсвэл «Install app» гэснийг сонгоно.')];
+  }
+  return h('section', { class: 'panel install-panel' }, h('h2', { class: 'h-section' }, 'Утсандаа суулгах'), body);
+}
+
+fb.redirectResult().catch((e) => {
+  console.error(e);
+  toast(errText(e, 'Нэвтрэхэд алдаа гарлаа'), 'error');
+});
+
 // ---------- Нэвтрэлтийн урсгал ----------
 fb.onUser((user) => {
   const prev = S.user && S.user.uid;
@@ -150,6 +202,17 @@ function onConfig() {
   const c = S.config;
   const active = c.state === 'active';
   if (active) {
+    if (!subs.has('u:inbox')) {
+      sub('u:inbox', () =>
+        fb.watch.letters(S.user.uid, (list) => {
+          announceLetters('in', S.inbox, list, 'down');
+          S.inbox = list;
+          render();
+        }, quiet(() => {
+          S.inbox = [];
+          render();
+        })));
+    }
     if (!subs.has('u:assign')) {
       sub('u:assign', () =>
         fb.watch.assignment(S.user.uid, (a) => {
@@ -165,7 +228,9 @@ function onConfig() {
   } else {
     stop('u:assign');
     stop('u:target');
-    Object.assign(S, { assignment: undefined, targetId: undefined, target: undefined });
+    stop('u:inbox');
+    stop('u:outbox');
+    Object.assign(S, { assignment: undefined, targetId: undefined, target: undefined, inbox: [], outbox: [] });
     syncPhotos();
   }
   if (active && c.finalDay) {
@@ -216,6 +281,19 @@ function onAssignment() {
   stop('u:target');
   S.target = t ? undefined : null;
   syncPhotos();
+  stop('u:outbox');
+  S.outbox = [];
+  if (t) {
+    sub('u:outbox', () =>
+      fb.watch.letters(t, (list) => {
+        announceLetters('out:' + t, S.outbox, list, 'up');
+        S.outbox = list;
+        render();
+      }, quiet(() => {
+        S.outbox = [];
+        render();
+      })));
+  }
   if (t) {
     sub('u:target', () =>
       fb.watch.user(t, (p) => {
@@ -244,6 +322,16 @@ function onGiver(id) {
         render();
       })));
   }
+}
+
+const lettersReady = new Set();
+function announceLetters(kind, before, after, incomingDir) {
+  if (!lettersReady.has(kind)) {
+    lettersReady.add(kind);
+    return;
+  }
+  const known = new Set(before.map((m) => m.id));
+  if (after.some((m) => !known.has(m.id) && m.dir === incomingDir)) toast('Шинэ нэргүй захидал ирлээ');
 }
 
 let notifReady = false;
@@ -545,6 +633,14 @@ function homeContent() {
       if (c.finalDay) out.push(revealSection());
       out.push(targetSection());
     }
+    if (S.target) {
+      const po = keep('letters:out', () => letterPanel('out'));
+      po.sync();
+      out.push(po);
+    }
+    const pi = keep('letters:in', () => letterPanel('in'));
+    pi.sync();
+    out.push(pi);
   }
   out.push(announcementsSection());
   return out;
@@ -571,6 +667,73 @@ function daySection(c) {
 
 function waiting() {
   return h('div', { class: 'tblock skeleton', 'aria-busy': 'true' }, h('span', { class: 'sr-only' }, 'Ачаалж байна'));
+}
+
+// ---------- Нэргүй захидал ----------
+function letterPanel(kind) {
+  const out = kind === 'out';
+  const list = h('ol', { class: 'letters' });
+  const empty = h('p', { class: 'muted small' });
+  const ta = h('textarea', {
+    class: 'input textarea letter-input', rows: '3', maxlength: '500',
+    placeholder: out ? 'Монитадаа нэрээ нуугаад бичээрэй' : 'Таныг сонгосон хүнд хариу бичих',
+    'aria-label': out ? 'Монитадаа захидал' : 'Хариу захидал',
+  });
+  const send = h('button', { class: 'btn btn-primary btn-small', type: 'submit' }, 'Илгээх');
+  const form = h('form', { class: 'letter-form' }, ta, h('div', { class: 'actions' }, send));
+  let last;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const text = ta.value.trim();
+    if (!text) return ta.focus();
+    send.disabled = true;
+    try {
+      if (out) {
+        await fb.sendLetter({ t: S.targetId, dir: 'down', k: S.assignment && S.assignment.k, text });
+      } else {
+        const lastDown = [...S.inbox].filter((m) => m.dir === 'down').sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt))[0];
+        await fb.sendLetter({ t: S.user.uid, dir: 'up', k: lastDown ? lastDown.k : '', text });
+      }
+      ta.value = '';
+      toast('Илгээлээ');
+    } catch (er) {
+      console.error(er);
+      toast(errText(er, 'Илгээж чадсангүй'), 'error');
+    } finally {
+      send.disabled = false;
+    }
+  });
+
+  const el = h('section', { class: 'panel letters-panel' },
+    h('div', null,
+      h('h2', { class: 'h-section' }, out ? 'Монитадаа нэргүй захидал' : 'Танд ирсэн нэргүй захидал'),
+      h('p', { class: 'muted small' }, out ? 'Таны нэр харагдахгүй.' : 'Хэн бичсэнийг сүүлийн өдөр мэдэх болно.')),
+    list, empty, form);
+
+  el.sync = () => {
+    const myKey = (S.assignment && S.assignment.k) || '';
+    let msgs;
+    if (out) msgs = S.outbox.filter((m) => (m.dir === 'down' && m.k === myKey) || (m.dir === 'up' && (!m.k || m.k === myKey)));
+    else msgs = S.inbox;
+    msgs = [...msgs].sort((a, b) => toMillis(a.createdAt) - toMillis(b.createdAt));
+    const otherName = out ? shortName(S.target) : (S.config.finalDay && S.giver ? shortName(S.giver) : 'Таныг сонгосон хүн');
+    const key = JSON.stringify([msgs.map((m) => m.id + toMillis(m.createdAt)), otherName]);
+    if (key === last) return;
+    last = key;
+    const mineDir = out ? 'down' : 'up';
+    list.replaceChildren(...msgs.map((m) => {
+      const mine = m.dir === mineDir;
+      return h('li', { class: 'letter ' + (mine ? 'mine' : 'theirs') },
+        h('span', { class: 'letter-who' }, mine ? 'Та' : otherName),
+        h('p', { class: 'letter-text' }, m.text),
+        h('time', { class: 'letter-time' }, fmtDate(m.createdAt)));
+    }));
+    list.style.display = msgs.length ? '' : 'none';
+    empty.textContent = msgs.length ? '' : out ? 'Одоогоор захидал бичээгүй байна.' : 'Одоогоор захидал ирээгүй байна.';
+    empty.style.display = msgs.length ? 'none' : '';
+  };
+  return el;
 }
 
 function targetPlaceholder() {
@@ -635,6 +798,7 @@ function profileContent() {
           },
         }, 'Мэдээлэл засах')));
   }
+  out.push(installPanel());
   out.push(h('section', { class: 'account' },
     h('div', null, h('p', { class: 'muted small' }, 'Google бүртгэл'), h('p', { class: 'account-email' }, S.user.email)),
     h('button', { class: 'btn btn-ghost', type: 'button', onclick: () => fb.logOut() }, svg(icons.logout), 'Гарах')));

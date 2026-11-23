@@ -323,6 +323,18 @@ select.input option { background: var(--bg-2); color: var(--text); }
 .inline-form { display: flex; gap: 8px; flex-wrap: wrap; }
 .inline-form .input { flex: 1 1 200px; }
 
+/* ---------- Нэргүй захидал ---------- */
+.letters { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow-y: auto; }
+.letter { max-width: 85%; padding: 10px 14px; border-radius: 18px; display: flex; flex-direction: column; gap: 3px; }
+.letter.mine { align-self: flex-end; background: rgba(124, 246, 255, .14); border-bottom-right-radius: 6px; }
+.letter.theirs { align-self: flex-start; background: rgba(255, 255, 255, .08); border-bottom-left-radius: 6px; }
+.letter-who { font-size: 12px; color: var(--muted); }
+.letter-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.letter-time { font-size: 11px; color: var(--muted); align-self: flex-end; }
+.letter-form { display: flex; flex-direction: column; gap: 10px; }
+.letter-form .actions { justify-content: flex-end; }
+.letter-input { min-height: 84px; }
+
 /* ---------- Мэдэгдэл ---------- */
 .notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .notice { padding: 14px 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); display: flex; flex-direction: column; gap: 6px; }
@@ -361,6 +373,8 @@ select.input option { background: var(--bg-2); color: var(--text); }
 .stat-value { font: 400 30px/1 var(--display); }
 .stat-label { font-size: 13px; color: var(--muted); }
 
+.people-tools { display: flex; gap: 10px; align-items: center; }
+.people-tools .searchbox { flex: 1; min-width: 0; }
 .searchbox { position: relative; }
 .searchbox .icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--muted); }
 .searchbox .input { padding-left: 46px; border-radius: 999px; }

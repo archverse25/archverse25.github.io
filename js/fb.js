@@ -1,12 +1,12 @@
 // Firebase холболт ба өгөгдлийн бүх үйлдэл.
 import {
-  initializeApp, getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut,
+  initializeApp, getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut,
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, collection, query, where, onSnapshot, getDoc, getDocs, getDocFromCache, setDoc,
   deleteDoc, writeBatch, serverTimestamp, terminate, clearIndexedDbPersistence,
-} from '../vendor/firebase.js?v=4';
-import { firebaseConfig } from './config.js?v=4';
-import { planRemoval, yearOf } from './matching.js?v=4';
+} from '../vendor/firebase.js?v=5';
+import { firebaseConfig } from './config.js?v=5';
+import { planRemoval, yearOf } from './matching.js?v=5';
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
@@ -20,11 +20,18 @@ const CONFIG = () => doc(db, 'config', 'main');
 // ---------- Нэвтрэлт ----------
 export const onUser = (cb) => onAuthStateChanged(auth, cb);
 
+export const isStandalone = () =>
+  (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+
 export function signIn() {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
+  // Суулгасан апп дотор нэмэлт цонх найдваргүй тул шилжүүлэх аргаар нэвтэрнэ.
+  if (isStandalone()) return signInWithRedirect(auth, provider);
   return signInWithPopup(auth, provider);
 }
+
+export const redirectResult = () => getRedirectResult(auth);
 
 export async function logOut() {
   await signOut(auth);
@@ -72,6 +79,8 @@ export const watch = {
   },
   announcements: (cb, err) =>
     onSnapshot(collection(db, 'announcements'), (qs) => cb(qs.docs.map((d) => ({ id: d.id, ...d.data(est) }))), err),
+  letters: (t, cb, err) =>
+    onSnapshot(query(collection(db, 'letters'), where('t', '==', t)), (qs) => cb(qs.docs.map((d) => ({ id: d.id, ...d.data(est) }))), err),
   photo: (uid, cb, err) => onSnapshot(doc(db, 'photos', uid), (s) => cb(s.exists() ? s.data().data : null), err),
   // админ
   allUsers: (cb, err) => onSnapshot(collection(db, 'users'), (qs) => cb(qs.docs.map((d) => ({ id: d.id, ...d.data(est) }))), err),
@@ -119,6 +128,17 @@ export async function saveProfile(user, data, existing) {
   await b.commit();
 }
 
+export function newKey() {
+  const a = new Uint8Array(9);
+  crypto.getRandomValues(a);
+  return [...a].map((b) => b.toString(36).padStart(2, '0')).join('').slice(0, 14);
+}
+
+// Нэргүй захидал. t = бэлэг авагч (thread), dir: 'down' = түүнийг сонгосон хүнээс, 'up' = өөрөөс нь.
+export function sendLetter({ t, dir, k, text }) {
+  return setDoc(doc(collection(db, 'letters')), { t, dir, k: k || '', text, createdAt: serverTimestamp() });
+}
+
 export const savePhoto = (uid, data) => setDoc(doc(db, 'photos', uid), { data, updatedAt: serverTimestamp() });
 export const deletePhoto = (uid) => deleteDoc(doc(db, 'photos', uid));
 export async function getPhoto(uid) {
@@ -162,7 +182,9 @@ export const updateConfig = (patch) => setDoc(CONFIG(), patch, { merge: true });
 export async function startMonita(assign, goldenCount) {
   const existing = await getDocs(collection(db, 'assignments'));
   await inChunks(existing.docs.filter((d) => !(d.id in assign)).map((d) => () => deleteDoc(d.ref)));
-  await inChunks(Object.entries(assign).map(([g, t]) => () => setDoc(doc(db, 'assignments', g), { target: t })));
+  const oldLetters = await getDocs(collection(db, 'letters'));
+  await inChunks(oldLetters.docs.map((d) => () => deleteDoc(d.ref)));
+  await inChunks(Object.entries(assign).map(([g, t]) => () => setDoc(doc(db, 'assignments', g), { target: t, k: newKey() })));
   await updateConfig({ state: 'active', finalDay: false, goldenCount, currentDay: 0, startedAt: serverTimestamp() });
 }
 
@@ -170,6 +192,8 @@ export async function cancelMonita() {
   await updateConfig({ state: 'registration', finalDay: false });
   const existing = await getDocs(collection(db, 'assignments'));
   await inChunks(existing.docs.map((d) => () => deleteDoc(d.ref)));
+  const letters = await getDocs(collection(db, 'letters'));
+  await inChunks(letters.docs.map((d) => () => deleteDoc(d.ref)));
 }
 
 export const NOTICE = {
@@ -192,7 +216,7 @@ export async function removeParticipant(user, { active, assign, users }) {
     const plan = planRemoval(assign, years, uid);
     const writes = [];
     for (const g of Object.keys(plan.assign)) {
-      if (plan.assign[g] !== assign[g]) writes.push(() => setDoc(doc(db, 'assignments', g), { target: plan.assign[g] }));
+      if (plan.assign[g] !== assign[g]) writes.push(() => setDoc(doc(db, 'assignments', g), { target: plan.assign[g], k: newKey() }));
     }
     for (const g of Object.keys(assign)) {
       if (!(g in plan.assign) && g !== uid) writes.push(() => deleteDoc(doc(db, 'assignments', g)));
@@ -203,6 +227,8 @@ export async function removeParticipant(user, { active, assign, users }) {
   } else {
     await deleteDoc(doc(db, 'assignments', uid)).catch(() => {});
   }
+  const mine = await getDocs(query(collection(db, 'letters'), where('t', '==', uid))).catch(() => null);
+  if (mine) await inChunks(mine.docs.map((d) => () => deleteDoc(d.ref)));
   const b = writeBatch(db);
   b.delete(doc(db, 'users', uid));
   b.delete(doc(db, 'photos', uid));
