@@ -223,9 +223,15 @@ export function errText(e, fallback = 'Алдаа гарлаа') {
     'auth/unauthorized-domain': 'Энэ хаяг Firebase-д бүртгэгдээгүй байна.',
     'auth/too-many-requests': 'Хэт олон оролдлого хийлээ. Түр хүлээгээд дахин оролдоно уу.',
     'auth/internal-error': 'Нэвтрэх үед дотоод алдаа гарлаа.',
+    'auth/web-storage-unsupported': 'Хөтчийн күүки/хадгалах сан хаалттай байна. Chrome эсвэл Safari-гаар энгийн цонхонд нээнэ үү.',
+    'auth/operation-not-supported-in-this-environment': 'Энэ хөтчөөр нэвтрэх боломжгүй. Chrome эсвэл Safari-гаар нээнэ үү.',
+    'resource-exhausted': 'Сайтын өдрийн хязгаар түр дүүрсэн байна. Хэсэг хугацааны дараа дахин оролдоно уу.',
+    'deadline-exceeded': 'Сервер хариу өгөхгүй удаж байна. Дахин оролдоно уу.',
+    'failed-precondition': 'Сайт өөр цонхонд нээлттэй байж магадгүй. Бусад цонхыг хаагаад дахин ачаална уу.',
   };
   const msg = map[code] || (e && e.userMessage) || fallback;
-  return code ? `${msg} (${code})` : msg;
+  // Энгийн хэрэглэгчид ойлгомжтой байлгахын тулд кодыг зөвхөн тодорхойгүй алдаанд үлдээнэ.
+  return code && !map[code] ? `${msg} (${code})` : msg;
 }
 
 export function debounce(fn, ms) {

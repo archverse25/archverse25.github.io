@@ -127,7 +127,13 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 .icon svg { width: 100%; height: 100%; }
 
 /* ---------- Ачаалж байна ---------- */
-.loading { min-height: 100dvh; display: grid; place-items: center; }
+.loading { min-height: 100dvh; display: grid; place-items: center; padding: 24px; }
+.loading-inner { display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; max-width: 320px; }
+.loading-help { display: flex; flex-direction: column; align-items: center; gap: 14px; color: var(--muted); }
+.loading-help[hidden] { display: none; }
+.loading-help .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.loading-mark.is-still { animation: none; opacity: .7; }
+.account-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); }
 .loading-mark { width: 60px; height: 60px; display: block; animation: cube-spin 1.8s cubic-bezier(.65, 0, .35, 1) infinite; filter: drop-shadow(0 10px 24px rgba(124, 246, 255, .25)); }
 .loading-mark svg { width: 100%; height: 100%; }
 @keyframes cube-spin {
@@ -690,3 +696,7 @@ select.input option { background: var(--bg-2); color: var(--text); }
   .profile-side .account { flex-direction: column; align-items: flex-start; }
   .page:not(.page-wide) { max-width: 760px; }
 }
+
+/* Интернэт тасарсан мэдэгдэл */
+.net-bar { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 10px); left: 50%; transform: translateX(-50%); z-index: 60; max-width: calc(100vw - 32px); padding: 9px 16px; border-radius: 999px; background: #FFD27A; color: #2A1450; font-size: 13px; font-weight: 600; text-align: center; box-shadow: 0 8px 24px rgba(0, 0, 0, .3); }
+.net-bar[hidden] { display: none; }

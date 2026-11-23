@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay } from './ui.js?v=10';
-import * as fb from './fb.js?v=10';
-import { makeMatching, validateMatching, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=10';
-import { fileToPages } from './media.js?v=10';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay } from './ui.js?v=11';
+import * as fb from './fb.js?v=11';
+import { makeMatching, validateMatching, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=11';
+import { fileToPages } from './media.js?v=11';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
@@ -153,7 +153,7 @@ async function exportExcel(ctx, btn) {
   if (!users.length) return toast('Оролцогч алга байна.');
   btn.disabled = true;
   try {
-    const XLSX = await import('../vendor/xlsx.js?v=10');
+    const XLSX = await import('../vendor/xlsx.js?v=11');
     const byId = byIdMap(S);
     const assign = S.admin.assign;
     const active = S.config.state === 'active';
@@ -278,15 +278,21 @@ async function start(ctx, btn) {
   });
   if (!ok) return;
   btn.disabled = true;
+  let locked = false;
   try {
-    const ppl = users.map((u) => ({ uid: u.id, code: u.studentCode, gender: u.gender }));
+    await fb.lockRegistration();
+    locked = true;
+    const fresh = (await fb.freshUsers()).filter((u) => u.studentCode);
+    const ppl = fresh.map((u) => ({ uid: u.id, code: u.studentCode, gender: u.gender }));
+    if (ppl.length < 3) throw new Error('Дор хаяж 3 оролцогч хэрэгтэй.');
     const m = makeMatching(ppl);
     const err = validateMatching(ppl, m.assign, m.golden);
     if (err) throw new Error(err);
     await fb.startMonita(m.assign, m.golden.length);
-    toast('Монита эхэллээ');
+    toast(fresh.length === users.length ? 'Монита эхэллээ' : `Монита эхэллээ (${fresh.length} оролцогч)`);
   } catch (e) {
     console.error(e);
+    if (locked) await fb.reopenRegistration().catch(() => {});
     toast(errText(e, e.message || 'Эхлүүлж чадсангүй'), 'error');
   } finally {
     btn.disabled = false;

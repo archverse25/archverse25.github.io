@@ -4,9 +4,9 @@ import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, collection, query, where, onSnapshot, getDoc, getDocs, getDocFromCache, setDoc,
   deleteDoc, writeBatch, serverTimestamp, terminate, clearIndexedDbPersistence,
-} from '../vendor/firebase.js?v=10';
-import { firebaseConfig } from './config.js?v=10';
-import { planRemoval, yearOf } from './matching.js?v=10';
+} from '../vendor/firebase.js?v=11';
+import { firebaseConfig } from './config.js?v=11';
+import { planRemoval, yearOf } from './matching.js?v=11';
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
@@ -45,18 +45,41 @@ export async function logOut() {
 }
 
 // ---------- Сонсогчид ----------
+// Серверээс шууд шалгана: { exists, data } эсвэл холболтгүй бол алдаа.
+export async function serverProfile(uid) {
+  const s = await getDoc(doc(db, 'users', uid));
+  if (s.metadata.fromCache) throw Object.assign(new Error('offline'), { code: 'unavailable' });
+  return s.exists() ? s.data(est) : null;
+}
+
+// Нэг баримт сонсох. Кэшэд "байхгүй" гэж хадгалагдсан бол серверийн баталгааг хүлээнэ
+// (серверийн "байхгүй" баталгаа зөвхөн includeMetadataChanges үед ирдэг). Ижил өгөгдлийг давтан дамжуулахгүй.
+function watchDoc(ref, cb, err, { map = (s) => s.data(est), onCacheMiss } = {}) {
+  let last;
+  return onSnapshot(ref, { includeMetadataChanges: true }, (s) => {
+    if (!s.exists() && s.metadata.fromCache) {
+      if (onCacheMiss) onCacheMiss();
+      return;
+    }
+    const v = s.exists() ? map(s) : null;
+    const sig = JSON.stringify(v);
+    if (sig === last) return;
+    last = sig;
+    cb(v);
+  }, err);
+}
+
 export const watch = {
-  config: (cb, err) => onSnapshot(CONFIG(), (s) => cb(s.exists() ? s.data(est) : null), err),
-  profile: (uid, cb, err) =>
-    onSnapshot(doc(db, 'users', uid), (s) => cb(s.exists() ? s.data(est) : null, s.metadata.fromCache), err),
+  config: (cb, err) => watchDoc(CONFIG(), cb, err),
+  profile: (uid, cb, err, onCacheMiss) => watchDoc(doc(db, 'users', uid), cb, err, { onCacheMiss }),
   // Серверт баталгаажсаны дараа л админ гэж үзнэ (эс тэгвээс жагсаалтууд эрхгүй гэж унана).
   isAdmin: (uid, cb, err) =>
     onSnapshot(doc(db, 'admins', uid), { includeMetadataChanges: true }, (s) => {
       if (s.metadata.hasPendingWrites) return;
       cb(s.exists());
     }, err),
-  assignment: (uid, cb, err) => onSnapshot(doc(db, 'assignments', uid), (s) => cb(s.exists() ? s.data() : null), err),
-  user: (uid, cb, err) => onSnapshot(doc(db, 'users', uid), (s) => cb(s.exists() ? s.data(est) : null), err),
+  assignment: (uid, cb, err) => watchDoc(doc(db, 'assignments', uid), cb, err, { map: (s) => s.data() }),
+  user: (uid, cb, err) => watchDoc(doc(db, 'users', uid), cb, err),
   givers: (uid, cb, err) =>
     onSnapshot(query(collection(db, 'assignments'), where('target', '==', uid)), (qs) => cb(qs.docs.map((d) => d.id)), err),
   notifications: (uid, cb, err) => {
@@ -81,7 +104,7 @@ export const watch = {
     onSnapshot(collection(db, 'announcements'), (qs) => cb(qs.docs.map((d) => ({ id: d.id, ...d.data(est) }))), err),
   letters: (t, cb, err) =>
     onSnapshot(query(collection(db, 'letters'), where('t', '==', t)), (qs) => cb(qs.docs.map((d) => ({ id: d.id, ...d.data(est) }))), err),
-  photo: (uid, cb, err) => onSnapshot(doc(db, 'photos', uid), (s) => cb(s.exists() ? s.data().data : null), err),
+  photo: (uid, cb, err) => watchDoc(doc(db, 'photos', uid), cb, err, { map: (s) => s.data().data }),
   // админ
   allUsers: (cb, err) => onSnapshot(collection(db, 'users'), (qs) => cb(qs.docs.map((d) => ({ id: d.id, ...d.data(est) }))), err),
   allAssignments: (cb, err) =>
@@ -191,6 +214,16 @@ export async function ensureConfig() {
 }
 
 export const updateConfig = (patch) => setDoc(CONFIG(), patch, { merge: true });
+
+// Эхлүүлэхийн өмнө бүртгэлийг түр хааж (rules: state != 'registration'), серверээс шинэ жагсаалт авна.
+// Ингэснээр яг эхлүүлэх агшинд бүртгүүлсэн хүн холболтоос хоцрохгүй.
+export const lockRegistration = () => updateConfig({ state: 'starting' });
+export const reopenRegistration = () => updateConfig({ state: 'registration' });
+export async function freshUsers() {
+  const qs = await getDocs(collection(db, 'users'));
+  if (qs.metadata && qs.metadata.fromCache) throw Object.assign(new Error('offline'), { code: 'unavailable' });
+  return qs.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
 
 export async function startMonita(assign, goldenCount) {
   const existing = await getDocs(collection(db, 'assignments'));

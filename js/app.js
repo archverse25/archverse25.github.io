@@ -1,10 +1,10 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay,
   toMillis, errText,
-} from './ui.js?v=10';
-import * as fb from './fb.js?v=10';
-import { adminContent, startAdminSubs } from './admin.js?v=10';
-import { fileToAvatar, thumbFromDataUrl } from './media.js?v=10';
+} from './ui.js?v=11';
+import * as fb from './fb.js?v=11';
+import { adminContent, startAdminSubs } from './admin.js?v=11';
+import { fileToAvatar, thumbFromDataUrl } from './media.js?v=11';
 
 // ---------- Төлөв ----------
 const S = {
@@ -91,6 +91,14 @@ function patch(parent, kids) {
   });
 }
 
+// ---------- Интернэт тасрах үед ----------
+const netBar = h('div', { class: 'net-bar', role: 'status', hidden: true }, 'Интернэт тасарсан байна. Холбогдмогц автоматаар шинэчлэгдэнэ.');
+document.body.appendChild(netBar);
+const syncNet = () => (netBar.hidden = navigator.onLine !== false);
+window.addEventListener('online', syncNet);
+window.addEventListener('offline', syncNet);
+syncNet();
+
 // ---------- Утсанд суулгах ----------
 let installEvt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -142,6 +150,7 @@ fb.redirectResult().catch((e) => {
 });
 
 // ---------- Нэвтрэлтийн урсгал ----------
+let profileFallback;
 fb.onUser((user) => {
   const prev = S.user && S.user.uid;
   S.user = user;
@@ -153,22 +162,45 @@ fb.onUser((user) => {
     S.photos = {};
     Object.assign(S, {
       profile: undefined, isAdmin: undefined, config: undefined, assignment: undefined, targetId: undefined,
-      target: undefined, giverId: undefined, giver: undefined, notifications: [],
+      target: undefined, giverId: undefined, giver: undefined, notifications: [], loadError: null,
     });
+    clearTimeout(profileFallback);
     render();
     return;
   }
   if (prev === user.uid) return render();
+  S.loadError = null;
+  clearTimeout(profileFallback);
+  // Кэшэд "байхгүй" гэж ирээд сервер удвал серверээс шууд асууна: бүртгэлгүй эсвэл холболтгүйг ялгана.
+  const onCacheMiss = () => {
+    clearTimeout(profileFallback);
+    profileFallback = setTimeout(async () => {
+      if (S.profile !== undefined || !S.user || S.user.uid !== user.uid) return;
+      try {
+        const fresh = await fb.serverProfile(user.uid);
+        if (S.profile === undefined && S.user && S.user.uid === user.uid) S.profile = fresh;
+      } catch (e) {
+        if (S.profile === undefined) S.loadError = errText(e);
+      }
+      render();
+    }, 5000);
+  };
   sub('u:profile', () =>
-    fb.watch.profile(user.uid, (p, fromCache) => {
-      if (!p && fromCache) return;
+    fb.watch.profile(user.uid, (p) => {
+      clearTimeout(profileFallback);
       S.profile = p;
       if (!p) {
         S.editing = false;
         forget('form:profile');
       }
       render();
-    }, loud('profile')));
+    }, (e) => {
+      console.error('profile', e);
+      clearTimeout(profileFallback);
+      if (S.profile === undefined) S.loadError = errText(e);
+      else toast(errText(e), 'error');
+      render();
+    }, onCacheMiss));
   sub('u:admin', () =>
     fb.watch.isAdmin(user.uid, (isAdmin) => {
       S.isAdmin = isAdmin;
@@ -186,7 +218,15 @@ fb.onUser((user) => {
       S.configExists = !!c;
       onConfig();
       render();
-    }, loud('config')));
+    }, (e) => {
+      console.error('config', e);
+      if (S.config === undefined) {
+        S.config = { ...DEFAULT_CONFIG };
+        onConfig();
+      }
+      toast(errText(e), 'error');
+      render();
+    }));
   sub('u:notif', () => fb.watch.notifications(user.uid, onNotifications, loud('notifications')));
   syncPhotos();
   render();
@@ -434,6 +474,7 @@ function draw() {
     patch(screens.landing, landingContent());
     return patch(root, [screens.landing]);
   }
+  if (S.loadError && S.profile === undefined) return patch(root, [errorView(S.loadError)]);
   if (S.profile === undefined || S.isAdmin === undefined || S.config === undefined) return patch(root, [loadingView()]);
 
   const tabs = availableTabs();
@@ -479,9 +520,46 @@ function markLettersSeen() {
   }
 }
 
+function errorView(msg) {
+  return h('div', { class: 'loading' },
+    h('div', { class: 'loading-inner' },
+      svg(GIFT_MINI, 'loading-mark is-still'),
+      h('div', { class: 'loading-help' },
+        h('p', null, 'Мэдээлэл ачаалж чадсангүй.'),
+        h('p', { class: 'small' }, msg),
+        h('div', { class: 'actions' },
+          h('button', { class: 'btn btn-primary btn-small', type: 'button', onclick: () => location.reload() }, 'Дахин ачаалах'),
+          h('button', { class: 'btn btn-small', type: 'button', onclick: () => fb.logOut() }, 'Гарах')))));
+}
+
 function loadingView() {
-  return keep('loading', () =>
-    h('div', { class: 'loading' }, svg(GIFT_MINI, 'loading-mark'), h('span', { class: 'sr-only' }, 'Ачаалж байна')));
+  return keep('loading', () => {
+    const help = h('div', { class: 'loading-help', hidden: true },
+      h('p', null, 'Ачаалахад удаж байна. Интернэт холболтоо шалгаад дахин оролдоно уу.'),
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn btn-primary btn-small', type: 'button', onclick: () => location.reload() }, 'Дахин ачаалах'),
+        h('button', { class: 'btn btn-small', type: 'button', onclick: () => fb.logOut() }, 'Гарах')));
+    const el = h('div', { class: 'loading' },
+      h('div', { class: 'loading-inner' }, svg(GIFT_MINI, 'loading-mark'), h('span', { class: 'sr-only' }, 'Ачаалж байна'), help));
+    // Ачаалах дэлгэц 12 секундээс удаан харагдвал тусламж гаргана.
+    let timer = 0;
+    let wasShown = false;
+    const check = () => {
+      const shown = el.isConnected;
+      if (shown && !wasShown) {
+        help.hidden = true;
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          if (el.isConnected) help.hidden = false;
+        }, 12000);
+      }
+      if (!shown) clearTimeout(timer);
+      wasShown = shown;
+    };
+    new MutationObserver(check).observe(document.getElementById('app'), { childList: true });
+    setTimeout(check, 0);
+    return el;
+  });
 }
 
 function availableTabs() {
@@ -877,12 +955,23 @@ function revealSection() {
 }
 
 // ---------- Бүртгэл ба профайл ----------
+// Аль Gmail-ээр нэвтэрснийг харуулж, өөр хаягаар орох боломж өгнө.
+function accountSwitch(hint) {
+  return h('section', { class: 'account-switch' },
+    h('div', null,
+      h('p', { class: 'muted small' }, 'Нэвтэрсэн Gmail'),
+      h('p', { class: 'account-email' }, S.user.email),
+      hint ? h('p', { class: 'muted small' }, hint) : null),
+    h('button', { class: 'btn btn-small', type: 'button', onclick: () => fb.logOut() }, svg(icons.logout), 'Өөр Gmail-ээр нэвтрэх'));
+}
+
 function registerContent() {
   if (S.config.state === 'active') {
     return [
       h('section', { class: 'intro' },
         h('h1', { class: 'h-display' }, 'Монита эхэлсэн байна'),
-        h('p', { class: 'lead' }, 'Монита явагдаж байх үед шинээр бүртгүүлэх боломжгүй.')),
+        h('p', { class: 'lead' }, 'Энэ Gmail хаягаар бүртгэл олдсонгүй. Монита явагдаж байх үед шинээр бүртгүүлэх боломжгүй.')),
+      accountSwitch('Хэрэв өөр Gmail-ээр бүртгүүлсэн бол тэр хаягаараа нэвтэрнэ үү.'),
       keep('form:admin', adminCodeForm),
     ];
   }
@@ -890,6 +979,7 @@ function registerContent() {
     h('header', { class: 'page-head' },
       h('h1', { class: 'h-display' }, 'Бүртгүүлэх'),
       h('p', { class: 'lead' }, 'Монитад оролцохын тулд мэдээллээ бөглөнө үү.')),
+    accountSwitch(),
     keep('form:register', () => profileForm(null)),
     keep('form:admin', adminCodeForm),
   ];
@@ -997,7 +1087,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=10'));
+    ({ AVATARS: list } = await import('./avatars.js?v=11'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;
@@ -1144,8 +1234,21 @@ function profileForm(p) {
       render();
     } catch (er) {
       console.error(er);
-      if (er.code === 'permission-denied' && S.config.state === 'active') formErr.textContent = 'Монита эхэлсэн тул мэдээлэл өөрчлөх боломжгүй.';
-      else if (er.code === 'permission-denied') formErr.textContent = errText(er, 'Хадгалж чадсангүй. Оюутны код давхцаж байж магадгүй.');
+      let taken = false;
+      if (er.code === 'permission-denied' && S.config.state !== 'active') {
+        // Нэг кодыг хоёр хүн зэрэг бүртгүүлэх үед хоёр дахь нь энд унана.
+        try {
+          const owner = await fb.codeOwner(data.studentCode);
+          taken = !!owner && owner !== S.user.uid;
+        } catch (_) {
+          /* */
+        }
+      }
+      if (taken) {
+        fCode.setError('Энэ оюутны код өөр хүн дээр бүртгэлтэй байна.');
+        code.focus();
+      } else if (er.code === 'permission-denied' && S.config.state === 'active') formErr.textContent = 'Монита эхэлсэн тул мэдээлэл өөрчлөх боломжгүй.';
+      else if (er.code === 'permission-denied') formErr.textContent = 'Хадгалж чадсангүй. Хуудсаа дахин ачаалаад оролдоно уу.';
       else formErr.textContent = errText(er, 'Хадгалж чадсангүй');
     } finally {
       submit.disabled = false;
