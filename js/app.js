@@ -1,10 +1,10 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay,
   toMillis, errText,
-} from './ui.js?v=8';
-import * as fb from './fb.js?v=8';
-import { adminContent, startAdminSubs } from './admin.js?v=8';
-import { fileToAvatar, thumbFromDataUrl } from './media.js?v=8';
+} from './ui.js?v=9';
+import * as fb from './fb.js?v=9';
+import { adminContent, startAdminSubs } from './admin.js?v=9';
+import { fileToAvatar, thumbFromDataUrl } from './media.js?v=9';
 
 // ---------- Төлөв ----------
 const S = {
@@ -418,7 +418,16 @@ function render() {
   });
 }
 
+const THEME_COLORS = { home: '#2A1450', profile: '#1D1A52', notifications: '#2F1447', admin: '#150E38' };
+function setEnvironment(tab) {
+  if (document.body.dataset.tab === tab) return;
+  document.body.dataset.tab = tab;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', THEME_COLORS[tab] || THEME_COLORS.home);
+}
+
 function draw() {
+  setEnvironment(S.user && S.profile !== undefined ? S.tab : 'home');
   if (!S.authReady) return patch(root, [loadingView()]);
   if (!S.user) {
     screens.landing = screens.landing || h('main', { class: 'landing', id: 'main' });
@@ -429,6 +438,7 @@ function draw() {
 
   const tabs = availableTabs();
   if (!tabs.some((t) => t.id === S.tab)) S.tab = tabs[0].id;
+  setEnvironment(S.tab);
   screens.main = screens.main || h('main', { class: 'page', id: 'main' });
   const wide = S.tab === 'admin' || (S.profile && (S.tab === 'home' || S.tab === 'profile'));
   screens.main.className = 'page' + (wide ? ' page-wide' : '') + (S.tab === screens.lastTab ? '' : ' page-enter');
@@ -984,7 +994,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=8'));
+    ({ AVATARS: list } = await import('./avatars.js?v=9'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;

@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay } from './ui.js?v=8';
-import * as fb from './fb.js?v=8';
-import { makeMatching, validateMatching, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=8';
-import { fileToPages } from './media.js?v=8';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay } from './ui.js?v=9';
+import * as fb from './fb.js?v=9';
+import { makeMatching, validateMatching, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=9';
+import { fileToPages } from './media.js?v=9';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
@@ -95,7 +95,7 @@ function peopleSection(ctx) {
     stat('Алтан монита', golden));
 
   const search = ctx.keep('admin:search', () => {
-    const inp = h('input', { class: 'input', type: 'search', placeholder: 'Код эсвэл нэрээр хайх', 'aria-label': 'Оролцогч хайх' });
+    const inp = h('input', { class: 'input', type: 'search', placeholder: 'Код, нэрээр хайх', 'aria-label': 'Оролцогч хайх' });
     inp.addEventListener('input', () => {
       S.admin.q = inp.value.trim().toLowerCase();
       ctx.render();
@@ -153,7 +153,7 @@ async function exportExcel(ctx, btn) {
   if (!users.length) return toast('Оролцогч алга байна.');
   btn.disabled = true;
   try {
-    const XLSX = await import('../vendor/xlsx.js?v=8');
+    const XLSX = await import('../vendor/xlsx.js?v=9');
     const byId = byIdMap(S);
     const assign = S.admin.assign;
     const active = S.config.state === 'active';

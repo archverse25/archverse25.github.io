@@ -4,9 +4,9 @@ import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, collection, query, where, onSnapshot, getDoc, getDocs, getDocFromCache, setDoc,
   deleteDoc, writeBatch, serverTimestamp, terminate, clearIndexedDbPersistence,
-} from '../vendor/firebase.js?v=8';
-import { firebaseConfig } from './config.js?v=8';
-import { planRemoval, yearOf } from './matching.js?v=8';
+} from '../vendor/firebase.js?v=9';
+import { firebaseConfig } from './config.js?v=9';
+import { planRemoval, yearOf } from './matching.js?v=9';
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
