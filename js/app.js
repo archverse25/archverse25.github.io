@@ -1,10 +1,10 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay, parseDay, fmtDay,
   toMillis, errText,
-} from './ui.js?v=14';
-import * as fb from './fb.js?v=14';
-import { adminContent, startAdminSubs } from './admin.js?v=14';
-import { fileToAvatar, thumbFromDataUrl } from './media.js?v=14';
+} from './ui.js?v=15';
+import * as fb from './fb.js?v=15';
+import { adminContent, startAdminSubs } from './admin.js?v=15';
+import { fileToAvatar, thumbFromDataUrl } from './media.js?v=15';
 
 // ---------- Төлөв ----------
 const S = {
@@ -976,7 +976,8 @@ function letterPanel(kind) {
     if (out) msgs = S.outbox.filter((m) => (m.dir === 'down' && m.k === myKey) || (m.dir === 'up' && (!m.k || m.k === myKey)));
     else msgs = S.inbox;
     msgs = [...msgs].sort((a, b) => toMillis(a.createdAt) - toMillis(b.createdAt));
-    const otherName = out ? shortName(S.target) : (S.config.finalDay && S.giver ? shortName(S.giver) : 'Таныг сонгосон хүн');
+    // Захидалд хэзээ ч нэр харуулахгүй: зөвхөн үүргээр нь.
+    const otherName = out ? 'Таны монита' : 'Таныг сонгосон хүн';
     const key = JSON.stringify([msgs.map((m) => m.id + toMillis(m.createdAt)), otherName]);
     if (key === last) return;
     last = key;
@@ -1184,7 +1185,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=14'));
+    ({ AVATARS: list } = await import('./avatars.js?v=15'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;
