@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay, isoDay, parseDay } from './ui.js?v=17';
-import * as fb from './fb.js?v=17';
-import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=17';
-import { fileToPages } from './media.js?v=17';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay, isoDay, parseDay } from './ui.js?v=18';
+import * as fb from './fb.js?v=18';
+import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=18';
+import { fileToPages } from './media.js?v=18';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
@@ -280,7 +280,7 @@ async function exportExcel(ctx, btn) {
   if (!users.length) return toast('Оролцогч алга байна.');
   btn.disabled = true;
   try {
-    const XLSX = await import('../vendor/xlsx.js?v=17');
+    const XLSX = await import('../vendor/xlsx.js?v=18');
     const byId = byIdMap(S);
     const assign = S.admin.assign;
     const active = S.config.state === 'active';
@@ -344,8 +344,12 @@ function removalPlan(S, u) {
   const assign = S.admin.assign || {};
   if (S.config.state !== 'active' || !(u.id in assign || Object.values(assign).includes(u.id))) return null;
   const years = {};
-  S.admin.users.forEach((x) => (years[x.id] = yearOf(x.studentCode)));
-  const plan = planRemoval(assign, years, u.id);
+  const genders = {};
+  S.admin.users.forEach((x) => {
+    years[x.id] = yearOf(x.studentCode);
+    genders[x.id] = x.gender;
+  });
+  const plan = planRemoval(assign, years, u.id, Math.random, genders);
   const golden = new Set(Object.keys(assign).filter((g) => isGolden(assign, g)));
   const err = validateCycle(plan.assign, golden);
   if (err) throw new Error('Холболт нөхөхөд алдаа гарлаа: ' + err);
@@ -751,6 +755,11 @@ function previewNotes(users) {
   if (r.yearIssues > 0) {
     notes.push(`${r.yearIssues} холболт ±1 жилийн дүрэмд багтахгүй: ойролцоо онтой хүн хүрэлцэхгүй тул хамгийн ойр онтой хүнтэй холбогдоно (хамгийн их зөрүү ${r.maxGap} жил).`);
   } else notes.push('Бүх холболт ±1 жилийн дүрэмд багтана.');
+  if (r.sameGender === 0) notes.push('Бүх хүн эсрэг хүйсийн хүнд бэлэг өгнө.');
+  else {
+    notes.push(`${users.length - r.sameGender} хүн эсрэг хүйсийн, ${r.sameGender} хүн ижил хүйсийн хүнд бэлэг өгнө` +
+      (r.sameGender <= r.sameFloor ? ` (эрэгтэй ${r.males}, эмэгтэй ${r.females} тул үүнээс бага боломжгүй).` : '.'));
+  }
   return h('ul', { class: 'change-list' }, notes.map((t) => h('li', null, t)));
 }
 

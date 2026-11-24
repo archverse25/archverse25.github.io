@@ -17,6 +17,13 @@ export function goldenCountFor(n) {
 
 const VIOLATION = 1000;
 const BAD_CYCLE = 1e7;
+// Ижил хүйстэй холболтын торгууль: бүх торгуулийн нийлбэр нэг жилийн зөрүүнээс бага байхаар (жилийн дүрэм түрүүлнэ).
+const genderWeight = (n) => Math.max(1, Math.floor(VIOLATION / (n + 1)));
+// Эрэгтэй/эмэгтэйн тоо тэнцүү биш үед зайлшгүй үлдэх ижил хүйстэй холболтын хамгийн бага тоо.
+export function minSameGender(people) {
+  const m = people.filter((p) => p.gender === 'male').length;
+  return people.length - 2 * Math.min(m, people.length - m);
+}
 
 function gap(a, b) {
   const d = Math.abs(a - b);
@@ -90,15 +97,15 @@ function structure(next, gender, k) {
 }
 
 // Бүх хүнийг нэг дор: k алтан хос + дор хаяж 3 хүнтэй тойргууд, онын зөрүүг хамгийн бага байлгана.
-function optimize(ps, k, rnd, spread) {
+function optimize(ps, k, rnd, spread, { gw = 0, init = null, T0 = 1500 } = {}) {
   const m = ps.length;
   const ys = ps.map((p) => p.year);
   const gender = ps.map((p) => p.gender);
   const idx = new Map(ps.map((p, i) => [p.uid, i]));
   const next = new Array(m);
 
-  // Эхлэл: алтан хосууд + үлдсэнийг оноор эрэмбэлсэн зигзаг тойрог.
-  const golden = pickGolden(ps, k, rnd, spread);
+  // Эхлэл: өгөгдсөн шийдэл, эсвэл алтан хосууд + үлдсэнийг оноор эрэмбэлсэн зигзаг тойрог.
+  const golden = init ? [] : pickGolden(ps, k, rnd, spread);
   const inGolden = new Set();
   for (const [a, b] of golden) {
     next[idx.get(a.uid)] = idx.get(b.uid);
@@ -113,8 +120,9 @@ function optimize(ps, k, rnd, spread) {
   for (let i = 0; i < order.length; i += 2) ring.push(order[i]);
   for (let i = order.length % 2 === 0 ? order.length - 1 : order.length - 2; i >= 1; i -= 2) ring.push(order[i]);
   for (let i = 0; i < ring.length; i++) next[ring[i]] = ring[(i + 1) % ring.length];
+  if (init) for (let i = 0; i < m; i++) next[i] = init[i];
 
-  const edge = (a, b) => gap(ys[a], ys[b]) * VIOLATION;
+  const edge = (a, b) => gap(ys[a], ys[b]) * VIOLATION + (gw && gender[a] === gender[b] ? gw : 0);
   let edgeSum = 0;
   for (let i = 0; i < m; i++) edgeSum += edge(i, next[i]);
   let st = structure(next, gender, k);
@@ -167,11 +175,28 @@ function optimize(ps, k, rnd, spread) {
   };
 
   const iters = Math.min(80000, 4000 + 300 * m);
-  let T = 1500;
+  let T = T0;
   const cooling = Math.pow(0.2 / T, 1 / iters);
+  // Нэг хүнийг тойргоос нь гаргаж өөр газар оруулах алхам (хүйс ээлжлүүлэхэд хэрэгтэй).
+  const relocate = () => {
+    const x = Math.floor(rnd() * m);
+    const after = next[x];
+    if (next[after] === x) return null;
+    const px = predOf(next, x);
+    const a = Math.floor(rnd() * m);
+    if (a === x || a === px) return null;
+    const nx = next.slice();
+    nx[px] = after;
+    const b = nx[a];
+    nx[a] = x;
+    nx[x] = b;
+    return nx;
+  };
+
   for (let it = 0; it < iters; it++, T *= cooling) {
-    if (k > 0 && rnd() < 0.08) {
-      const nx = goldenSwap();
+    const r0 = rnd();
+    if ((k > 0 && r0 < 0.08) || r0 > 0.75) {
+      const nx = r0 > 0.75 ? relocate() : goldenSwap();
       if (!nx) continue;
       const nEdge = total(nx);
       const nst = structure(nx, gender, k);
@@ -218,12 +243,20 @@ function optimize(ps, k, rnd, spread) {
   }
   const fin = structure(best, gender, k);
   const isPerm = new Set(best).size === m;
-  return { next: best, violation: bestEdge / VIOLATION, cycles: fin.cycles, valid: isPerm && fin.cost < BAD_CYCLE };
+  let violation = 0;
+  let same = 0;
+  for (let i = 0; i < m; i++) {
+    violation += gap(ys[i], ys[best[i]]);
+    if (gender[i] === gender[best[i]]) same++;
+  }
+  void bestEdge;
+  return { next: best, violation, same, cycles: fin.cycles, valid: isPerm && fin.cost < BAD_CYCLE };
 }
 
 // 8 хүртэлх хүнтэй бол бүх боломжит хувилбарыг шалгаж хамгийн сайныг нь (тэнцүү бол санамсаргүй) сонгоно.
 function exactSmall(ps, k, rnd) {
   const n = ps.length;
+  const gw = genderWeight(n);
   const p = [...Array(n).keys()];
   let bestCost = Infinity;
   let pick = null;
@@ -249,7 +282,7 @@ function exactSmall(ps, k, rnd) {
     }
     if (twos !== k) return;
     let c = 0;
-    for (let i = 0; i < n; i++) c += gap(ps[i].year, ps[p[i]].year);
+    for (let i = 0; i < n; i++) c += gap(ps[i].year, ps[p[i]].year) * VIOLATION + (ps[i].gender === ps[p[i]].gender ? gw : 0);
     if (c < bestCost) {
       bestCost = c;
       pick = p.slice();
@@ -271,11 +304,13 @@ function exactSmall(ps, k, rnd) {
   if (!pick) return null;
   const assign = {};
   const golden = [];
+  let violation = 0;
   for (let i = 0; i < n; i++) {
     assign[ps[i].uid] = ps[pick[i]].uid;
+    violation += gap(ps[i].year, ps[pick[i]].year);
     if (pick[pick[i]] === i && i < pick[i]) golden.push([ps[i].uid, ps[pick[i]].uid]);
   }
-  return { assign, golden, violation: bestCost };
+  return { assign, golden, violation };
 }
 
 // people: [{uid, code, gender}] → { assign: {giverUid: targetUid}, golden: [[uid, uid]], violation }
@@ -289,12 +324,24 @@ export function makeMatching(people, rnd = Math.random) {
   }
   let best = null;
   const trials = 12;
+  const gw = genderWeight(ps.length);
+  const sameFloor = minSameGender(ps);
+  const scoreOf = (res) => res.violation * VIOLATION + res.same * gw + res.cycles;
+  // 1-р шат: зөвхөн жилийн дүрмээр хамгийн сайн холболт.
   for (let t = 0; t < trials; t++) {
     const res = optimize(ps, k, rnd, t < 2 ? 0 : 1 + (t / trials) * 3);
     if (!res.valid) continue;
     const score = res.violation * VIOLATION + res.cycles;
     if (!best || score < best.score) best = { score, ...res };
     if (res.violation === 0 && t >= 1) break;
+  }
+  // 2-р шат: тэр холболтоос эхлээд хүйсийг холино. Нийт оноо зөвхөн буурдаг тул жилийн дүрэм муудахгүй.
+  if (best) {
+    best.score = scoreOf(best);
+    for (let t = 0; t < 4 && best.same > sameFloor; t++) {
+      const res = optimize(ps, k, rnd, 0, { gw, init: best.next, T0: 400 });
+      if (res.valid && scoreOf(res) < best.score) best = { ...res, score: scoreOf(res) };
+    }
   }
   if (!best) throw new Error('Холболт үүсгэж чадсангүй. Дахин оролдоно уу.');
   const assign = {};
@@ -323,11 +370,12 @@ export function giverOf(assign, uid) {
 //  kind 'replaced'  — таны монита гарсан, оронд нь түүний монита танд сонгогдлоо
 //  kind 'reinserted'— алтан хос нь гарсан хүн шинэ монитатай боллоо
 //  kind 'changed'   — тойргийг засахын тулд монита өөрчлөгдлөө
-export function planRemoval(assignIn, years, removed, rnd = Math.random) {
+export function planRemoval(assignIn, years, removed, rnd = Math.random, genders = {}) {
   const assign = { ...assignIn };
   const changes = [];
   const yr = (u) => years[u];
-  const cost = (a, b) => gap(yr(a), yr(b));
+  // Жилийн зөрүү түрүүлж, дараа нь эсрэг хүйсийг илүүд үзнэ.
+  const cost = (a, b) => gap(yr(a), yr(b)) * 100 + (genders[a] && genders[a] === genders[b] ? 1 : 0);
 
   const pickEdge = (exclude, score) => {
     let bestScore = Infinity;
@@ -336,7 +384,7 @@ export function planRemoval(assignIn, years, removed, rnd = Math.random) {
       const B = assign[A];
       if (exclude.has(A) || exclude.has(B)) continue;
       const golden = assign[B] === A;
-      const s = score(A, B) * 10 + (golden ? 1000 : 0);
+      const s = score(A, B) * 10 + (golden ? 100000 : 0);
       if (s < bestScore) {
         bestScore = s;
         cands = [[A, B]];
@@ -421,14 +469,21 @@ export function validateCycle(assign, allowMutual = new Set()) {
 // Админд урьдчилан харуулах тайлан: ±1 жилийн дүрмээс гадуур холболт, алтан монитагийн тоо.
 export function matchReport(people, assign, goldenPairs) {
   const years = Object.fromEntries(people.map((p) => [p.uid, yearOf(p.code)]));
+  const gender = Object.fromEntries(people.map((p) => [p.uid, p.gender]));
   let yearIssues = 0;
   let maxGap = 0;
+  let sameGender = 0;
   for (const g in assign) {
     const d = Math.abs(years[g] - years[assign[g]]);
     if (d > 1) yearIssues++;
     if (d > maxGap) maxGap = d;
+    if (gender[g] === gender[assign[g]]) sameGender++;
   }
-  return { yearIssues, maxGap, golden: goldenPairs.length, goldenWanted: goldenCountFor(people.length) };
+  const males = people.filter((p) => p.gender === 'male').length;
+  return {
+    yearIssues, maxGap, golden: goldenPairs.length, goldenWanted: goldenCountFor(people.length),
+    sameGender, sameFloor: minSameGender(people), males, females: people.length - males,
+  };
 }
 
 // Шалгалт (тест болон эхлүүлэхээс өмнө).
