@@ -1,10 +1,10 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay, parseDay, fmtDay, fmtMoney,
   toMillis, errText,
-} from './ui.js?v=18';
-import * as fb from './fb.js?v=18';
-import { adminContent, startAdminSubs } from './admin.js?v=18';
-import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=18';
+} from './ui.js?v=19';
+import * as fb from './fb.js?v=19';
+import { adminContent, startAdminSubs } from './admin.js?v=19';
+import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=19';
 
 // ---------- Төлөв ----------
 const S = {
@@ -1494,7 +1494,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=18'));
+    ({ AVATARS: list } = await import('./avatars.js?v=19'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;

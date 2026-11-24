@@ -1,8 +1,8 @@
 // Монита холбох алгоритм.
 // Дүрэм:
 //  - Оюутны код B + 2 оронтой элссэн он + 4 оронтой анги + 3 оронтой дугаар (B252800012).
-//  - Хүн бүр ±1 жилийн зөрүүтэй хүнтэй таарна (25 → 24, 25, 26).
-//  - Алтан монита: хүйс өөр, ±1 жилийн дүрэмд багтах 2 хүн бие биенээ сонгоно.
+//  - Хүн бүр ±2 жилийн зөрүүтэй хүнтэй таарна (25 → 23, 24, 25, 26, 27).
+//  - Алтан монита: хүйс өөр, ±2 жилийн дүрэмд багтах 2 хүн бие биенээ сонгоно.
 //    Тоо нь max(1, floor(n / 25)).
 //  - Бусад хэн ч бие биенээ сонгохгүй (энгийн тойрог дор хаяж 3 хүнтэй).
 //  - Дүрмээр болохгүй үед хамгийн ойр онтой бүлэг рүү нэвтэрнэ (зөрчлийг хамгийн бага байлгана).
@@ -25,9 +25,11 @@ export function minSameGender(people) {
   return people.length - 2 * Math.min(m, people.length - m);
 }
 
+// Элссэн оны зөвшөөрөгдөх зөрүү (дээш доош).
+export const YEAR_RANGE = 2;
 function gap(a, b) {
   const d = Math.abs(a - b);
-  return d <= 1 ? 0 : d - 1;
+  return d <= YEAR_RANGE ? 0 : d - YEAR_RANGE;
 }
 
 function shuffle(arr, rnd) {
@@ -338,8 +340,8 @@ export function makeMatching(people, rnd = Math.random) {
   // 2-р шат: тэр холболтоос эхлээд хүйсийг холино. Нийт оноо зөвхөн буурдаг тул жилийн дүрэм муудахгүй.
   if (best) {
     best.score = scoreOf(best);
-    for (let t = 0; t < 4 && best.same > sameFloor; t++) {
-      const res = optimize(ps, k, rnd, 0, { gw, init: best.next, T0: 400 });
+    for (let t = 0; t < 10 && best.same > sameFloor; t++) {
+      const res = optimize(ps, k, rnd, 0, { gw, init: best.next, T0: t % 2 ? 900 : 300 });
       if (res.valid && scoreOf(res) < best.score) best = { ...res, score: scoreOf(res) };
     }
   }
@@ -466,7 +468,7 @@ export function validateCycle(assign, allowMutual = new Set()) {
   return null;
 }
 
-// Админд урьдчилан харуулах тайлан: ±1 жилийн дүрмээс гадуур холболт, алтан монитагийн тоо.
+// Админд урьдчилан харуулах тайлан: ±2 жилийн дүрмээс гадуур холболт, алтан монитагийн тоо.
 export function matchReport(people, assign, goldenPairs) {
   const years = Object.fromEntries(people.map((p) => [p.uid, yearOf(p.code)]));
   const gender = Object.fromEntries(people.map((p) => [p.uid, p.gender]));
@@ -475,7 +477,7 @@ export function matchReport(people, assign, goldenPairs) {
   let sameGender = 0;
   for (const g in assign) {
     const d = Math.abs(years[g] - years[assign[g]]);
-    if (d > 1) yearIssues++;
+    if (d > YEAR_RANGE) yearIssues++;
     if (d > maxGap) maxGap = d;
     if (gender[g] === gender[assign[g]]) sameGender++;
   }

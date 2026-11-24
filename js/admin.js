@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay, isoDay, parseDay } from './ui.js?v=18';
-import * as fb from './fb.js?v=18';
-import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=18';
-import { fileToPages } from './media.js?v=18';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay, isoDay, parseDay } from './ui.js?v=19';
+import * as fb from './fb.js?v=19';
+import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=19';
+import { fileToPages } from './media.js?v=19';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
@@ -280,7 +280,7 @@ async function exportExcel(ctx, btn) {
   if (!users.length) return toast('Оролцогч алга байна.');
   btn.disabled = true;
   try {
-    const XLSX = await import('../vendor/xlsx.js?v=18');
+    const XLSX = await import('../vendor/xlsx.js?v=19');
     const byId = byIdMap(S);
     const assign = S.admin.assign;
     const active = S.config.state === 'active';
@@ -738,7 +738,7 @@ function adminsPanel(ctx) {
     h('div', { class: 'actions' }, lockBtn));
 }
 
-// Урьдчилсан тайлан: ±1 жилийн дүрэм, алтан монитагийн тоо.
+// Урьдчилсан тайлан: ±2 жилийн дүрэм, алтан монитагийн тоо.
 function previewNotes(users) {
   const ppl = users.map((u) => ({ uid: u.id, code: u.studentCode, gender: u.gender }));
   let m;
@@ -753,8 +753,8 @@ function previewNotes(users) {
     ? ` (дүрмээр ${r.goldenWanted} байх ёстой ч хүйсийн харьцаа эсвэл оролцогчдын тооноос болж ${r.golden} үүснэ)`
     : ''));
   if (r.yearIssues > 0) {
-    notes.push(`${r.yearIssues} холболт ±1 жилийн дүрэмд багтахгүй: ойролцоо онтой хүн хүрэлцэхгүй тул хамгийн ойр онтой хүнтэй холбогдоно (хамгийн их зөрүү ${r.maxGap} жил).`);
-  } else notes.push('Бүх холболт ±1 жилийн дүрэмд багтана.');
+    notes.push(`${r.yearIssues} холболт ±2 жилийн дүрэмд багтахгүй: ойролцоо онтой хүн хүрэлцэхгүй тул хамгийн ойр онтой хүнтэй холбогдоно (хамгийн их зөрүү ${r.maxGap} жил).`);
+  } else notes.push('Бүх холболт ±2 жилийн дүрэмд багтана.');
   if (r.sameGender === 0) notes.push('Бүх хүн эсрэг хүйсийн хүнд бэлэг өгнө.');
   else {
     notes.push(`${users.length - r.sameGender} хүн эсрэг хүйсийн, ${r.sameGender} хүн ижил хүйсийн хүнд бэлэг өгнө` +
