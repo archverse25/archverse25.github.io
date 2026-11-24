@@ -1,10 +1,10 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay, parseDay, fmtDay, fmtMoney,
   toMillis, errText,
-} from './ui.js?v=19';
-import * as fb from './fb.js?v=19';
-import { adminContent, startAdminSubs } from './admin.js?v=19';
-import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=19';
+} from './ui.js?v=20';
+import * as fb from './fb.js?v=20';
+import { adminContent, startAdminSubs } from './admin.js?v=20';
+import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=20';
 
 // ---------- Төлөв ----------
 const S = {
@@ -146,12 +146,12 @@ function openPrivacy() {
   const ul = (items) => h('ul', null, items.map((t) => h('li', null, t)));
   openDialog(h('div', { class: 'privacy' },
     sec('Ямар мэдээлэл цуглуулдаг вэ',
-      ul(['Gmail хаяг (Google-ээр нэвтрэхэд)', 'Овог, нэр, оюутны код, хүйс, утасны дугаар', 'Сонирхол, хүсэж буй бэлэг', 'Профайл зураг (заавал биш)', 'Нэргүй захидал', 'Сүүлийн өдөр оруулсан бэлгийн зураг болон шилдэг бэлэгт өгсөн санал'])),
+      ul(['Gmail хаяг (Google-ээр нэвтрэхэд)', 'Овог, нэр, оюутны код, хүйс, утасны дугаар', 'Hint (сонирхол, хүсэж буй бэлэг)', 'Профайл зураг (заавал биш)', 'Нэргүй захидал', 'Сүүлийн өдөр оруулсан бэлгийн зураг болон шилдэг бэлэгт өгсөн санал'])),
     sec('Юунд ашигладаг вэ',
       h('p', null, 'Зөвхөн ARXI.VERSE-25 ангийн монитаг зохион байгуулахад: хэн хэнд бэлэг өгөхийг холбох, бэлэг өгөх хүнд таны мэдээллийг харуулах.')),
     sec('Хэн хардаг вэ',
       ul([
-        'Монита эхэлсний дараа танд бэлэг өгөх хүн таны нэр, утас, сонирхол, зургийг харна.',
+        'Монита эхэлсний дараа танд бэлэг өгөх хүн таны нэр, утас, hint, зургийг харна.',
         'Сүүлийн өдөр хэн хэнийг сонгосон нь илчлэгдэнэ.',
         'Сүүлийн өдөр оруулсан бэлгийн зургийг бүх оролцогч харна. Хэн хэнд санал өгснийг зөвхөн админ харна.',
         'Админ бүх оролцогчийн мэдээллийг харна.',
@@ -887,7 +887,7 @@ function titleBlock(title, p, { golden = false, note = null, extra = null, photo
       cell('Оюутны код', p.studentCode, 'code'),
       cell('Хүйс', genderLabel(p.gender)),
       cell('Утас', h('a', { href: 'tel:' + p.phone, class: 'tel' }, fmtPhone(p.phone)), 'wide'),
-      cell('Сонирхол, хүсэж буй бэлэг', p.wishes || '—', 'wide pre'),
+      cell('Hint', p.wishes || '—', 'wide pre'),
       extra));
 }
 
@@ -1494,7 +1494,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=19'));
+    ({ AVATARS: list } = await import('./avatars.js?v=20'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;
@@ -1579,7 +1579,7 @@ function profileForm(p) {
   const updCounter = () => (counter.textContent = `${wishes.value.length}/1000`);
   wishes.addEventListener('input', updCounter);
   updCounter();
-  const fWishes = field('Сонирхол, хүсэж буй бэлэг', wishes);
+  const fWishes = field('Hint', wishes);
   fWishes.append(counter);
 
   const submit = h('button', { class: 'btn btn-primary', type: 'submit' }, p ? 'Хадгалах' : 'Бүртгүүлэх');
@@ -1630,7 +1630,7 @@ function profileForm(p) {
       [fLast, data.lastName ? '' : 'Овгоо оруулна уу.'],
       [fFirst, data.firstName ? '' : 'Нэрээ оруулна уу.'],
       [fPhone, /^\d{8}$/.test(data.phone) ? '' : 'Утасны дугаар 8 оронтой байна.'],
-      [fWishes, data.wishes ? '' : 'Сонирхол, хүсэж буй бэлгээ бичнэ үү.'],
+      [fWishes, data.wishes ? '' : 'Hint-ээ бичнэ үү.'],
     ];
     errs.forEach(([f, m]) => f.setError(m));
     const firstBad = errs.find(([, m]) => m);
