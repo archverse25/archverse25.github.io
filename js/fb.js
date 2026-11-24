@@ -4,8 +4,8 @@ import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, collection, query, where, onSnapshot, getDoc, getDocs, getDocFromCache, setDoc,
   deleteDoc, writeBatch, serverTimestamp, terminate, clearIndexedDbPersistence,
-} from '../vendor/firebase.js?v=15';
-import { firebaseConfig } from './config.js?v=15';
+} from '../vendor/firebase.js?v=16';
+import { firebaseConfig } from './config.js?v=16';
 
 
 export const app = initializeApp(firebaseConfig);
@@ -121,12 +121,36 @@ export const watch = {
     }, err),
   allNotifications: (cb, err) =>
     onSnapshot(collection(db, 'notifications'), (qs) => cb(qs.docs.map((d) => ({ id: d.id, ...d.data(est) }))), err),
+  // Сүүлийн өдрийн бэлгийн зургууд (бүгдэд), миний санал, уншсан төлөв.
+  gifts: (cb, err) =>
+    onSnapshot(collection(db, 'gifts'), (qs) => cb(qs.docs.map((d) => ({ id: d.id, ...d.data(est) }))), err),
+  myVote: (uid, cb, err) => watchDoc(doc(db, 'votes', uid), cb, err),
+  reads: (uid, cb, err) => watchDoc(doc(db, 'reads', uid), cb, err),
+  allVotes: (cb, err) =>
+    onSnapshot(collection(db, 'votes'), (qs) => cb(qs.docs.map((d) => ({ id: d.id, entry: d.data().entry }))), err),
   // Код өөрөө харагдахгүй: зөвхөн имэйл, огноо.
   allAdmins: (cb, err) =>
     onSnapshot(collection(db, 'admins'), (qs) => cb(qs.docs.map((d) => ({ id: d.id, email: d.data().email, createdAt: d.data(est).createdAt }))), err),
 };
 
 export const removeAdmin = (uid) => deleteDoc(doc(db, 'admins', uid));
+
+// ---------- Шилдэг бэлэг ----------
+export const saveGift = (uid, data, ratio, caption) =>
+  setDoc(doc(db, 'gifts', uid), { data, ratio, caption: caption || '', createdAt: serverTimestamp() });
+export const deleteGift = (uid) => deleteDoc(doc(db, 'gifts', uid));
+export const vote = (uid, entry) => setDoc(doc(db, 'votes', uid), { entry, createdAt: serverTimestamp() });
+export const unvote = (uid) => deleteDoc(doc(db, 'votes', uid));
+
+// ---------- Уншсан төлөв (төхөөрөмж хооронд) ----------
+export const saveReads = (uid, patch) => setDoc(doc(db, 'reads', uid), patch, { merge: true });
+
+async function clearCollections(names) {
+  for (const col of names) {
+    const qs = await getDocs(collection(db, col));
+    await inChunks(qs.docs.map((d) => () => deleteDoc(d.ref)));
+  }
+}
 
 // ---------- Оролцогч ----------
 export async function codeOwner(code) {
@@ -172,6 +196,7 @@ export async function deleteMyAccount(uid, studentCode) {
   b.delete(doc(db, 'users', uid));
   b.delete(doc(db, 'photos', uid));
   b.delete(doc(db, 'thumbs', uid));
+  b.delete(doc(db, 'reads', uid));
   if (studentCode) b.delete(doc(db, 'studentCodes', studentCode));
   await b.commit();
 }
@@ -246,16 +271,14 @@ export async function freshUsers() {
 
 // Монита дууссаны дараа оролцогчдын бүх мэдээллийг устгана. Зар, өдрийн сэдэв, админууд үлдэнэ.
 export async function wipeParticipantData() {
-  await updateConfig({ state: 'registration', finalDay: false, currentDay: 0 });
-  for (const col of ['assignments', 'letters', 'notifications', 'thumbs']) {
-    const qs = await getDocs(collection(db, col));
-    await inChunks(qs.docs.map((d) => () => deleteDoc(d.ref)));
-  }
+  await updateConfig({ state: 'registration', finalDay: false, currentDay: 0, voting: 'open', giftWinner: null });
+  await clearCollections(['assignments', 'letters', 'notifications', 'thumbs', 'gifts', 'votes']);
   const users = await freshUsers();
   await inChunks(users.map((u) => async () => {
     const b = writeBatch(db);
     b.delete(doc(db, 'users', u.id));
     b.delete(doc(db, 'photos', u.id));
+    b.delete(doc(db, 'reads', u.id));
     if (u.studentCode) b.delete(doc(db, 'studentCodes', u.studentCode));
     await b.commit();
   }));
@@ -267,16 +290,14 @@ export async function startMonita(assign, goldenCount) {
   await inChunks(existing.docs.filter((d) => !(d.id in assign)).map((d) => () => deleteDoc(d.ref)));
   const oldLetters = await getDocs(collection(db, 'letters'));
   await inChunks(oldLetters.docs.map((d) => () => deleteDoc(d.ref)));
+  await clearCollections(['gifts', 'votes']);
   await inChunks(Object.entries(assign).map(([g, t]) => () => setDoc(doc(db, 'assignments', g), { target: t, k: newKey() })));
-  await updateConfig({ state: 'active', finalDay: false, goldenCount, currentDay: 0, startedAt: serverTimestamp() });
+  await updateConfig({ state: 'active', finalDay: false, goldenCount, currentDay: 0, startedAt: serverTimestamp(), voting: 'open', giftWinner: null });
 }
 
 export async function cancelMonita() {
-  await updateConfig({ state: 'registration', finalDay: false });
-  const existing = await getDocs(collection(db, 'assignments'));
-  await inChunks(existing.docs.map((d) => () => deleteDoc(d.ref)));
-  const letters = await getDocs(collection(db, 'letters'));
-  await inChunks(letters.docs.map((d) => () => deleteDoc(d.ref)));
+  await updateConfig({ state: 'registration', finalDay: false, voting: 'open', giftWinner: null });
+  await clearCollections(['assignments', 'letters', 'gifts', 'votes']);
 }
 
 export const NOTICE = {
@@ -310,6 +331,9 @@ export async function removeParticipant(user, { assign = {}, plan = null } = {})
   b.delete(doc(db, 'users', uid));
   b.delete(doc(db, 'photos', uid));
   b.delete(doc(db, 'thumbs', uid));
+  b.delete(doc(db, 'gifts', uid));
+  b.delete(doc(db, 'votes', uid));
+  b.delete(doc(db, 'reads', uid));
   if (user.studentCode) b.delete(doc(db, 'studentCodes', user.studentCode));
   await b.commit();
   // Түүнд ирсэн захидлууд (өөр хэнд ч харагдахгүй тул дараа нь цэвэрлэнэ).

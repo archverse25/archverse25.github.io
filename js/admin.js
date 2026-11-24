@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay } from './ui.js?v=15';
-import * as fb from './fb.js?v=15';
-import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=15';
-import { fileToPages } from './media.js?v=15';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay } from './ui.js?v=16';
+import * as fb from './fb.js?v=16';
+import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=16';
+import { fileToPages } from './media.js?v=16';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
@@ -25,12 +25,17 @@ export function startAdminSubs(S, render, loud) {
     S.admin.admins = list.sort((a, b) => toMillis(a.createdAt) - toMillis(b.createdAt));
     render();
   }, () => {});
+  const u6 = fb.watch.allVotes((list) => {
+    S.admin.votes = list;
+    render();
+  }, () => {});
   return () => {
     u1();
     u2();
     u3();
     u4();
     u5();
+    u6();
   };
 }
 
@@ -98,6 +103,7 @@ function peopleSection(ctx) {
     stat('Эрэгтэй', males),
     stat('Эмэгтэй', users.length - males),
     stat('Алтан монита', golden));
+  const breakdown = statsPanel(users, thumbs);
 
   const search = ctx.keep('admin:search', () => {
     const inp = h('input', { class: 'input', type: 'search', placeholder: 'Код, нэрээр хайх', 'aria-label': 'Оролцогч хайх' });
@@ -149,7 +155,7 @@ function peopleSection(ctx) {
         h('tbody', null, rows)),
       rows.length ? null : h('p', { class: 'empty' }, 'Хайлтад тохирох оролцогч алга.'))
     : h('p', { class: 'empty' }, 'Одоогоор бүртгүүлсэн оролцогч алга.');
-  return [stats, search, table];
+  return [stats, breakdown, search, table];
 }
 
 async function exportExcel(ctx, btn) {
@@ -158,7 +164,7 @@ async function exportExcel(ctx, btn) {
   if (!users.length) return toast('Оролцогч алга байна.');
   btn.disabled = true;
   try {
-    const XLSX = await import('../vendor/xlsx.js?v=15');
+    const XLSX = await import('../vendor/xlsx.js?v=16');
     const byId = byIdMap(S);
     const assign = S.admin.assign;
     const active = S.config.state === 'active';
@@ -269,6 +275,38 @@ async function remove(ctx, u) {
   }
 }
 
+// Статистик: элссэн оноор (хүйсээр задлан), зураггүй оролцогчид.
+function statsPanel(users, thumbs) {
+  if (!users.length) return null;
+  const byYear = {};
+  for (const u of users) {
+    const y = yearOf(u.studentCode);
+    const r = (byYear[y] = byYear[y] || { total: 0, male: 0, female: 0 });
+    r.total++;
+    r[u.gender === 'male' ? 'male' : 'female']++;
+  }
+  const years = Object.keys(byYear).map(Number).sort((a, b) => a - b);
+  const max = Math.max(...years.map((y) => byYear[y].total));
+  const noPhoto = users.filter((u) => !thumbs[u.id]);
+  return h('section', { class: 'panel stats-panel' },
+    h('div', { class: 'stats-block' },
+      h('h2', { class: 'h-section' }, 'Элссэн оноор'),
+      h('ul', { class: 'meter-list' }, years.map((y) => {
+        const r = byYear[y];
+        const label = `${2000 + y} он`;
+        const detail = `${r.total} хүн (эр ${r.male}, эм ${r.female})`;
+        return h('li', { class: 'meter-row', title: `${label}: ${detail}` },
+          h('span', { class: 'meter-name' }, label),
+          h('span', { class: 'meter-track', 'aria-hidden': 'true' }, h('span', { class: 'meter-bar', style: { width: `${(r.total / max) * 100}%` } })),
+          h('span', { class: 'meter-fig' }, detail));
+      }))),
+    h('div', { class: 'stats-block' },
+      h('h2', { class: 'h-section' }, `Зураггүй оролцогчид (${noPhoto.length})`),
+      noPhoto.length
+        ? h('ul', { class: 'chip-list' }, noPhoto.map((u) => h('li', { class: 'chip' }, shortName(u))))
+        : h('p', { class: 'muted' }, 'Бүх оролцогч профайл зурагтай.')));
+}
+
 // ---------- Монита удирдлага ----------
 function monitaSection(ctx) {
   const { S } = ctx;
@@ -303,7 +341,119 @@ function monitaSection(ctx) {
   const status = h('section', { class: 'panel' }, h('h2', { class: 'h-section' }, 'Төлөв'), body);
   const days = ctx.keep('admin:days', () => daysEditor(ctx));
   days.sync();
-  return [status, days, adminsPanel(ctx), wipePanel(ctx)];
+  const sched = ctx.keep('admin:schedule', () => schedulePanel(ctx));
+  sched.sync();
+  return [status, active && c.finalDay ? votePanel(ctx) : null, sched, days, adminsPanel(ctx), wipePanel(ctx)];
+}
+
+// Шилдэг бэлгийн санал хураалт: явц, дүн зарлах.
+function voteTally(S) {
+  const entries = new Set((S.gifts || []).map((g) => g.id));
+  const counts = {};
+  for (const v of S.admin.votes || []) if (entries.has(v.entry)) counts[v.entry] = (counts[v.entry] || 0) + 1;
+  return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+}
+function votePanel(ctx) {
+  const { S } = ctx;
+  const c = S.config;
+  const open = c.voting !== 'closed';
+  const byId = byIdMap(S);
+  const tally = voteTally(S);
+  const totalVotes = tally.reduce((s, [, n]) => s + n, 0);
+  const nm = (id) => (byId[id] ? shortName(byId[id]) : '—');
+  const btn = h('button', { class: 'btn ' + (open ? 'btn-primary' : 'btn-ghost'), type: 'button', disabled: open && !tally.length },
+    open ? 'Санал хураалтыг хааж дүнг зарлах' : 'Дүнг нууж санал хураалтыг дахин нээх');
+  btn.addEventListener('click', async () => {
+    if (open) {
+      const top = tally.length ? tally[0][1] : 0;
+      const winners = tally.filter(([, n]) => n === top && n > 0);
+      const ok = await confirmDialog({
+        title: 'Дүнг зарлах уу?',
+        body: `Шилдэг бэлэг: ${winners.map(([id]) => `${nm(giverOf(S.admin.assign, id))} → ${nm(id)}`).join(', ')} (${top} санал). Санал хураалт хаагдана.`,
+        ok: 'Зарлах',
+      });
+      if (!ok) return;
+      btn.disabled = true;
+      try {
+        await fb.updateConfig({
+          voting: 'closed',
+          giftWinner: { entries: winners.map(([id, n]) => ({ id, votes: n, giver: nm(giverOf(S.admin.assign, id)), receiver: nm(id) })), total: totalVotes },
+        });
+        toast('Дүн зарлагдлаа');
+      } catch (e) {
+        toast(errText(e), 'error');
+        btn.disabled = false;
+      }
+    } else {
+      btn.disabled = true;
+      try {
+        await fb.updateConfig({ voting: 'open', giftWinner: null });
+        toast('Санал хураалт дахин нээгдлээ');
+      } catch (e) {
+        toast(errText(e), 'error');
+        btn.disabled = false;
+      }
+    }
+  });
+  return h('section', { class: 'panel' },
+    h('h2', { class: 'h-section' }, 'Шилдэг бэлэг'),
+    h('p', { class: 'muted' }, `${(S.gifts || []).length} зураг, ${totalVotes} санал. ${open ? 'Санал хураалт явагдаж байна.' : 'Дүн зарлагдсан.'}`),
+    tally.length
+      ? h('ol', { class: 'vote-list' }, tally.slice(0, 10).map(([id, n]) =>
+        h('li', null, h('span', null, `${nm(giverOf(S.admin.assign, id))} → ${nm(id)}`), h('b', null, `${n} санал`))))
+      : null,
+    h('div', { class: 'actions' }, btn));
+}
+
+// 'YYYY-MM-DDTHH:MM' (орон нутгийн цаг) ↔ мс
+function toLocalInput(ms) {
+  if (!ms) return '';
+  const d = new Date(ms);
+  const z = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`;
+}
+function fromLocalInput(v) {
+  const t = v ? new Date(v).getTime() : 0;
+  return Number.isFinite(t) ? t : 0;
+}
+
+// Тоолуурын хугацаа: монита эхлэх, сүүлийн өдөр.
+function schedulePanel(ctx) {
+  const { S } = ctx;
+  let dirty = false;
+  const startInp = h('input', { class: 'input input-date', type: 'datetime-local', 'aria-label': 'Монита эхлэх огноо, цаг' });
+  const finalInp = h('input', { class: 'input input-date', type: 'datetime-local', 'aria-label': 'Сүүлийн өдрийн огноо, цаг' });
+  const save = h('button', { class: 'btn btn-primary', type: 'button', disabled: true }, 'Хугацаа хадгалах');
+  [startInp, finalInp].forEach((el) => el.addEventListener('input', () => {
+    dirty = true;
+    save.disabled = false;
+  }));
+  save.addEventListener('click', async () => {
+    const startAt = fromLocalInput(startInp.value);
+    const finalAt = fromLocalInput(finalInp.value);
+    if (startAt && finalAt && finalAt <= startAt) return toast('Сүүлийн өдөр эхлэх хугацаанаас хойш байх ёстой.', 'error');
+    save.disabled = true;
+    try {
+      await fb.updateConfig({ startAt, finalAt });
+      dirty = false;
+      toast('Хадгаллаа');
+    } catch (e) {
+      save.disabled = false;
+      toast(errText(e), 'error');
+    }
+  });
+  const lab = (text, ctl) => h('label', { class: 'mini-field' }, h('span', { class: 'mini-label' }, text), ctl);
+  const el = h('section', { class: 'panel' },
+    h('h2', { class: 'h-section' }, 'Тоолуур'),
+    h('p', { class: 'muted' }, 'Нүүр хуудсанд монита эхлэх болон сүүлийн өдөр хүртэл хэр хугацаа үлдсэнийг харуулна. Хоосон орхивол харагдахгүй.'),
+    h('div', { class: 'sched-grid' }, lab('Монита эхлэх', startInp), lab('Сүүлийн өдөр', finalInp)),
+    h('div', { class: 'actions' }, save));
+  el.sync = () => {
+    if (dirty) return;
+    startInp.value = toLocalInput(S.config.startAt);
+    finalInp.value = toLocalInput(S.config.finalAt);
+  };
+  return el;
 }
 
 // Монита дууссаны дараа оролцогчдын мэдээллийг бүрмөсөн устгах (хувийн мэдээллийн бодлогын дагуу).
@@ -555,6 +705,31 @@ function daysEditor(ctx) {
         items[i] = { ...items[i], date: dateInp.value };
         markDirty();
       });
+      // Нэмэлт мэдээлэл: тайлбар, үнийн хязгаар, хүлээлгэн өгөх цаг ба газар.
+      const bind = (el, key, conv = (v) => v) => {
+        el.addEventListener('input', () => {
+          items[i] = { ...items[i], [key]: conv(el.value) };
+          markDirty();
+        });
+        return el;
+      };
+      const descInp = bind(h('textarea', { class: 'input textarea', rows: '2', maxlength: '300', placeholder: 'Жишээ: Цэнхэр өнгөтэй, гараар хийсэн зүйл' }), 'desc');
+      descInp.value = d.desc;
+      const budgetInp = h('input', { class: 'input', inputmode: 'numeric', placeholder: '20,000', value: d.budget ? d.budget.toLocaleString('en-US') : '' });
+      budgetInp.addEventListener('input', () => {
+        const n = parseInt(budgetInp.value.replace(/\D/g, ''), 10) || 0;
+        budgetInp.value = n ? n.toLocaleString('en-US') : '';
+        items[i] = { ...items[i], budget: n };
+        markDirty();
+      });
+      const timeInp = bind(h('input', { class: 'input input-date', type: 'time', value: d.time }), 'time');
+      const placeInp = bind(h('input', { class: 'input', maxlength: '80', placeholder: 'Жишээ: 3-р байр, 204 тоот', value: d.place }), 'place');
+      const lab = (text, ctl, cls = '') => h('label', { class: 'mini-field ' + cls }, h('span', { class: 'mini-label' }, text), ctl);
+      const details = h('div', { class: 'day-details' },
+        lab('Тайлбар', descInp, 'wide'),
+        lab('Үнийн дээд хязгаар (₮)', budgetInp),
+        lab('Хүлээлгэн өгөх цаг', timeInp),
+        lab('Газар', placeInp));
       const isCur = S.config.state === 'active' && cur === i;
       return h('li', { class: 'day-row' + (isCur ? ' current' : '') },
         h('span', { class: 'day-num' }, `${i + 1}-р өдөр`),
@@ -572,13 +747,17 @@ function daysEditor(ctx) {
               draw();
             },
           }, svg(icons.trash))),
+        details,
         mediaBox(d, i));
     }));
     if (!items.length) list.append(h('li', { class: 'empty' }, 'Өдөр нэмээд сэдвээ оруулна уу.'));
   }
 
   async function save(switchTo, message) {
-    const days = items.map((d) => ({ theme: d.theme.trim(), date: d.date || '', files: d.files, ratios: d.ratios }));
+    const days = items.map((d) => ({
+      theme: d.theme.trim(), date: d.date || '', desc: (d.desc || '').trim(), budget: d.budget || 0,
+      time: d.time || '', place: (d.place || '').trim(), files: d.files, ratios: d.ratios,
+    }));
     let currentDay = switchTo !== undefined ? switchTo : S.config.currentDay || 0;
     if (currentDay >= days.length) currentDay = Math.max(0, days.length - 1);
     saveBtn.disabled = true;
@@ -595,7 +774,9 @@ function daysEditor(ctx) {
   addBtn.addEventListener('click', () => {
     // Огноог өмнөх өдрийн дараагийн өдрөөр (эхний өдөр бол өнөөдрөөр) бөглөнө.
     const prev = items.length ? items[items.length - 1].date : '';
-    items.push({ theme: '', date: nextIsoDay(prev), files: [], ratios: [] });
+    const last = items.length ? items[items.length - 1] : null;
+    // Үнийн хязгаар, цаг, газрыг өмнөх өдрөөс хуулна (ихэвчлэн ижил байдаг).
+    items.push({ ...normDay(null), date: nextIsoDay(prev), budget: last ? last.budget : 0, time: last ? last.time : '', place: last ? last.place : '' });
     markDirty();
     draw();
     const inputs = list.querySelectorAll('input.input:not(.input-date)');

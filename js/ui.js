@@ -175,10 +175,18 @@ export function confirmDialog({ title, body, extra = null, ok = 'Тийм', canc
 }
 
 // Өдөр: хуучин хувилбарт зөвхөн бичвэр байсан, одоо {theme, files, ratios}.
+const EMPTY_DAY = { theme: '', date: '', desc: '', budget: 0, time: '', place: '', files: [], ratios: [] };
 export function normDay(d) {
-  if (!d) return { theme: '', date: '', files: [], ratios: [] };
-  if (typeof d === 'string') return { theme: d, date: '', files: [], ratios: [] };
-  return { theme: d.theme || '', date: d.date || '', files: d.files || [], ratios: d.ratios || [] };
+  if (!d) return { ...EMPTY_DAY };
+  if (typeof d === 'string') return { ...EMPTY_DAY, theme: d };
+  return {
+    theme: d.theme || '', date: d.date || '', desc: d.desc || '', budget: +d.budget || 0,
+    time: d.time || '', place: d.place || '', files: d.files || [], ratios: d.ratios || [],
+  };
+}
+// 20000 → "20,000₮"
+export function fmtMoney(n) {
+  return n ? `${Math.round(n).toLocaleString('en-US')}₮` : '';
 }
 
 // Өдрийн огноо 'YYYY-MM-DD' хэлбэрээр хадгалагдана.

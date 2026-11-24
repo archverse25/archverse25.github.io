@@ -98,6 +98,35 @@ export async function fileToAvatar(file) {
   return { data, thumb: thumbFrom(canvas) };
 }
 
+// Бэлгийн зураг: урт тал нь 720px хүртэл, ~240k тэмдэгтээс бага.
+export async function fileToGiftPhoto(file) {
+  const img = await loadImage(file);
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+  let scale = Math.min(1, 720 / Math.max(w, h));
+  let data = '';
+  for (let tries = 0; tries < 4; tries++) {
+    const cw = Math.max(1, Math.round(w * scale));
+    const ch = Math.max(1, Math.round(h * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = cw;
+    canvas.height = ch;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.drawImage(img, 0, 0, cw, ch);
+    let q = 0.8;
+    data = canvas.toDataURL('image/jpeg', q);
+    while (data.length > 240000 && q > 0.45) {
+      q -= 0.1;
+      data = canvas.toDataURL('image/jpeg', q);
+    }
+    if (data.length <= 240000) return { data, ratio: ch / cw };
+    scale *= 0.75;
+  }
+  throw new Error('Зураг хэт том байна. Өөр зураг сонгоно уу.');
+}
+
 function thumbFrom(source) {
   const c = document.createElement('canvas');
   c.width = 72;

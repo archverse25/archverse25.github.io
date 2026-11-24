@@ -1,10 +1,10 @@
 import {
-  h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay, parseDay, fmtDay,
+  h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay, parseDay, fmtDay, fmtMoney,
   toMillis, errText,
-} from './ui.js?v=15';
-import * as fb from './fb.js?v=15';
-import { adminContent, startAdminSubs } from './admin.js?v=15';
-import { fileToAvatar, thumbFromDataUrl } from './media.js?v=15';
+} from './ui.js?v=16';
+import * as fb from './fb.js?v=16';
+import { adminContent, startAdminSubs } from './admin.js?v=16';
+import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=16';
 
 // ---------- Төлөв ----------
 const S = {
@@ -19,6 +19,9 @@ const S = {
   giverId: undefined,
   giver: undefined,
   notifications: [],
+  gifts: [],
+  myVote: undefined,
+  reads: null,
   announcements: [],
   photos: {},
   inbox: [],
@@ -26,7 +29,7 @@ const S = {
   tab: tabFromHash(),
   editing: false,
   seenAtOpen: 0,
-  admin: { users: [], assign: {}, notifications: [], sub: sessionGet('monita:adminSub') || 'people', q: '' },
+  admin: { users: [], assign: {}, notifications: [], votes: [], admins: [], sub: sessionGet('monita:adminSub') || 'people', q: '' },
 };
 window.__monita = S; // алдаа шалгахад хэрэгтэй
 
@@ -103,13 +106,14 @@ function openPrivacy() {
   const ul = (items) => h('ul', null, items.map((t) => h('li', null, t)));
   openDialog(h('div', { class: 'privacy' },
     sec('Ямар мэдээлэл цуглуулдаг вэ',
-      ul(['Gmail хаяг (Google-ээр нэвтрэхэд)', 'Овог, нэр, оюутны код, хүйс, утасны дугаар', 'Сонирхол, хүсэж буй бэлэг', 'Профайл зураг (заавал биш)', 'Нэргүй захидал'])),
+      ul(['Gmail хаяг (Google-ээр нэвтрэхэд)', 'Овог, нэр, оюутны код, хүйс, утасны дугаар', 'Сонирхол, хүсэж буй бэлэг', 'Профайл зураг (заавал биш)', 'Нэргүй захидал', 'Сүүлийн өдөр оруулсан бэлгийн зураг болон шилдэг бэлэгт өгсөн санал'])),
     sec('Юунд ашигладаг вэ',
       h('p', null, 'Зөвхөн ARXI.VERSE-25 ангийн монитаг зохион байгуулахад: хэн хэнд бэлэг өгөхийг холбох, бэлэг өгөх хүнд таны мэдээллийг харуулах.')),
     sec('Хэн хардаг вэ',
       ul([
         'Монита эхэлсний дараа танд бэлэг өгөх хүн таны нэр, утас, сонирхол, зургийг харна.',
         'Сүүлийн өдөр хэн хэнийг сонгосон нь илчлэгдэнэ.',
+        'Сүүлийн өдөр оруулсан бэлгийн зургийг бүх оролцогч харна. Хэн хэнд санал өгснийг зөвхөн админ харна.',
         'Админ бүх оролцогчийн мэдээллийг харна.',
         'Бусад оролцогч болон гадны хүн таны мэдээллийг харахгүй.',
       ])),
@@ -198,7 +202,7 @@ fb.onUser((user) => {
     S.photos = {};
     Object.assign(S, {
       profile: undefined, isAdmin: undefined, config: undefined, assignment: undefined, targetId: undefined,
-      target: undefined, giverId: undefined, giver: undefined, notifications: [], loadError: null,
+      target: undefined, giverId: undefined, giver: undefined, notifications: [], loadError: null, reads: null, gifts: [], myVote: undefined,
     });
     clearTimeout(profileFallback);
     render();
@@ -264,6 +268,10 @@ fb.onUser((user) => {
       render();
     }));
   sub('u:notif', () => fb.watch.notifications(user.uid, onNotifications, loud('notifications')));
+  sub('u:reads', () => fb.watch.reads(user.uid, (r) => {
+    S.reads = r || {};
+    render();
+  }, () => {}));
   syncPhotos();
   render();
 });
@@ -325,6 +333,29 @@ function onConfig() {
     stop('u:giver');
     Object.assign(S, { giverId: undefined, giver: undefined });
     syncPhotos();
+  }
+  // Шилдэг бэлгийн санал хураалт (сүүлийн өдөр).
+  if (active && c.finalDay) {
+    if (!subs.has('u:gifts')) {
+      sub('u:gifts', () => fb.watch.gifts((list) => {
+        S.gifts = list.sort((a, b) => toMillis(a.createdAt) - toMillis(b.createdAt));
+        render();
+      }, quiet(() => {
+        S.gifts = [];
+        render();
+      })));
+      sub('u:vote', () => fb.watch.myVote(S.user.uid, (v) => {
+        S.myVote = v;
+        render();
+      }, quiet(() => {
+        S.myVote = null;
+        render();
+      })));
+    }
+  } else {
+    stop('u:gifts');
+    stop('u:vote');
+    Object.assign(S, { gifts: [], myVote: undefined });
   }
 }
 
@@ -447,19 +478,34 @@ function onNotifications(list) {
 function seenKey() {
   return 'monita:seen:' + (S.user ? S.user.uid : '');
 }
+// Уншсан төлөв: төхөөрөмж дээр болон серверт (reads/{uid}) хадгалж, ихийг нь авна.
+const sentReads = {};
+function serverRead(key) {
+  return Math.max((S.reads && +S.reads[key]) || 0, sentReads[key] || 0);
+}
+function pushRead(key, value) {
+  if (!S.user || value <= serverRead(key)) return;
+  sentReads[key] = value;
+  fb.saveReads(S.user.uid, { [key]: value }).catch((e) => console.warn('reads', e && e.code));
+}
 function lastSeen() {
+  let local = 0;
   try {
-    return +(localStorage.getItem(seenKey()) || 0);
+    local = +(localStorage.getItem(seenKey()) || 0);
   } catch (_) {
-    return 0;
+    /* */
   }
+  return Math.max(local, serverRead('notif'));
 }
 function markSeen() {
+  const now = Date.now();
   try {
-    localStorage.setItem(seenKey(), String(Date.now()));
+    localStorage.setItem(seenKey(), String(now));
   } catch (_) {
     /* хадгалах боломжгүй */
   }
+  // Хэт олон бичихгүйн тулд 5 секундээс дээш зөрүүтэй үед л серверт хадгална.
+  if (now - serverRead('notif') > 5000) pushRead('notif', now);
 }
 function unreadCount() {
   const s = lastSeen();
@@ -537,23 +583,28 @@ function incomingLetters() {
     ...S.outbox.filter((m) => m.dir === 'up' && (!m.k || m.k === myKey)),
   ];
 }
-function unreadLetters() {
-  let seen = 0;
+function lettersSeen() {
+  let local = 0;
   try {
-    seen = +(localStorage.getItem(lettersSeenKey()) || 0);
+    local = +(localStorage.getItem(lettersSeenKey()) || 0);
   } catch (_) {
     /* */
   }
+  return Math.max(local, serverRead('letters'));
+}
+function unreadLetters() {
+  const seen = lettersSeen();
   return incomingLetters().filter((m) => toMillis(m.createdAt) > seen).length;
 }
 function markLettersSeen() {
   const latest = Math.max(0, ...incomingLetters().map((m) => toMillis(m.createdAt)));
-  if (!latest) return;
+  if (!latest || latest <= lettersSeen()) return;
   try {
-    if (+(localStorage.getItem(lettersSeenKey()) || 0) < latest) localStorage.setItem(lettersSeenKey(), String(latest));
+    localStorage.setItem(lettersSeenKey(), String(latest));
   } catch (_) {
     /* */
   }
+  pushRead('letters', latest);
 }
 
 function errorView(msg) {
@@ -655,6 +706,7 @@ function landingContent() {
         h('h1', { class: 'wordmark' }, 'Монита'),
         h('p', { class: 'hero-sub' }, 'Архитектурын ангийн шинэ жилийн нууц бэлэг'))),
     keep('landing:signin', signInBlock),
+    howToView(false),
     announcementsSection(),
     keep('landing:vertical', () => h('div', { class: 'vertical-mark', 'aria-hidden': 'true' }, 'MUST ARCHITECTURE')),
     siteFooter(),
@@ -806,10 +858,12 @@ function homeContent() {
     out.push(h('section', { class: 'intro' },
       h('h1', { class: 'h-display' }, 'Монита эхлээгүй байна'),
       h('p', { class: 'lead' }, 'Эхлэхээс өмнө профайлаа засах боломжтой.'),
+      countdownView(),
       h('a', { class: 'btn btn-ghost', href: '#profile' }, S.photos[S.user.uid] ? 'Профайл харах' : 'Профайл зураг оруулах')));
     out.push(targetPlaceholder());
-    return [h('div', { class: 'home-pre' }, out), announcementsSection()];
+    return [h('div', { class: 'home-pre' }, out), howToView(true), announcementsSection()];
   }
+  out.push(countdownView());
   out.push(daySection(c));
   const left = [];
   const right = [];
@@ -833,6 +887,11 @@ function homeContent() {
   patch(colL, left);
   patch(colR, right);
   out.push(keep('home:grid', () => h('div', { class: 'home-grid' }, colL, colR)));
+  if (c.finalDay) {
+    const gs = keep('gifts', giftSection);
+    gs.sync();
+    out.push(gs);
+  }
   out.push(announcementsSection());
   return out;
 }
@@ -903,6 +962,214 @@ function dateTile(iso) {
     h('span', { class: 'dt-week' }, p.wd));
 }
 
+// ---------- Шилдэг бэлэг ----------
+function openPhoto(src, title) {
+  openDialog(h('div', { class: 'lightbox' }, h('img', { class: 'lightbox-img', src, alt: title || 'Бэлгийн зураг' })), { title: title || 'Бэлгийн зураг', wide: true });
+}
+
+function giftSection() {
+  const intro = h('p', { class: 'muted' });
+  const winnerBox = h('div', { class: 'gift-winner-wrap' });
+  const mine = h('div', { class: 'gift-mine' });
+  const grid = h('ul', { class: 'gift-grid' });
+  const empty = h('p', { class: 'muted small' });
+  const caption = h('input', { class: 'input', maxlength: '120', placeholder: 'Бэлгийн тухай товч (заавал биш)', 'aria-label': 'Бэлгийн тухай' });
+  const fileId = 'gift-file-' + Math.random().toString(36).slice(2, 7);
+  const file = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,image/heic', class: 'sr-only', id: fileId });
+  const pick = h('label', { class: 'btn btn-primary btn-small', for: fileId }, svg(icons.upload), h('span', null, 'Бэлгийн зураг оруулах'));
+  let busy = false;
+  file.addEventListener('change', async () => {
+    const f = file.files && file.files[0];
+    file.value = '';
+    if (!f || busy) return;
+    busy = true;
+    pick.classList.add('is-busy');
+    pick.lastChild.textContent = 'Хадгалж байна…';
+    try {
+      const { data, ratio } = await fileToGiftPhoto(f);
+      await fb.saveGift(S.user.uid, data, ratio, caption.value.trim());
+      toast('Бэлгийн зураг нэмэгдлээ');
+    } catch (e) {
+      console.error(e);
+      toast(errText(e, e.message || 'Зураг хадгалж чадсангүй'), 'error');
+    } finally {
+      busy = false;
+      pick.classList.remove('is-busy');
+      el.sync(true);
+    }
+  });
+
+  const el = h('section', { class: 'panel gifts-panel', 'aria-labelledby': 'gifts-h' },
+    h('h2', { class: 'h-section', id: 'gifts-h' }, 'Шилдэг бэлэг'), intro, winnerBox, mine, grid, empty, file);
+
+  let last = '';
+  el.sync = (force) => {
+    const c = S.config;
+    const open = c.voting !== 'closed';
+    const me = S.user.uid;
+    const canTake = !!S.profile;
+    const myGift = S.gifts.find((g) => g.id === me);
+    const voted = S.myVote && S.myVote.entry;
+    const win = c.giftWinner && c.giftWinner.entries ? c.giftWinner : null;
+    const key = JSON.stringify([open, canTake, voted, S.gifts.map((g) => g.id + toMillis(g.createdAt) + (g.caption || '')), win]);
+    if (key === last && !force) return;
+    last = key;
+
+    intro.textContent = open
+      ? 'Авсан бэлгийнхээ зургийг оруулаад, хамгийн гоё бэлэгт саналаа өгөөрэй. Өөрийн зурагт санал өгөх боломжгүй.'
+      : 'Санал хураалт дууслаа.';
+
+    // Ялагч
+    winnerBox.replaceChildren(...(win ? win.entries.map((w) => {
+      const g = S.gifts.find((x) => x.id === w.id);
+      return h('article', { class: 'gift-winner' },
+        g ? h('button', { class: 'gift-img-btn', type: 'button', onclick: () => openPhoto(g.data, 'Шилдэг бэлэг') },
+          h('img', { src: g.data, alt: 'Шилдэг бэлэг', style: { aspectRatio: `1 / ${g.ratio || 1}` } })) : null,
+        h('div', { class: 'gift-winner-text' },
+          h('span', { class: 'tb-badge' }, '✦ Шилдэг бэлэг'),
+          g && g.caption ? h('p', { class: 'gift-caption' }, g.caption) : null,
+          h('dl', { class: 'day-facts' },
+            h('div', { class: 'fact' }, h('dt', null, 'Бэлэг өгсөн'), h('dd', null, w.giver || '—')),
+            h('div', { class: 'fact' }, h('dt', null, 'Хүлээн авсан'), h('dd', null, w.receiver || '—')),
+            h('div', { class: 'fact' }, h('dt', null, 'Санал'), h('dd', null, String(w.votes))))));
+    }) : []));
+
+    // Өөрийн зураг
+    mine.replaceChildren();
+    if (open && canTake) {
+      if (myGift) {
+        if (myGift.caption) caption.value = myGift.caption;
+        pick.lastChild.textContent = 'Зураг солих';
+        mine.append(h('div', { class: 'gift-mine-row' },
+          h('img', { class: 'gift-mine-img', src: myGift.data, alt: 'Таны оруулсан зураг' }),
+          h('div', { class: 'gift-mine-actions' },
+            h('p', { class: 'small' }, 'Таны оруулсан зураг'),
+            caption,
+            h('div', { class: 'actions' }, pick,
+              h('button', {
+                class: 'btn btn-small btn-ghost', type: 'button', onclick: async () => {
+                  const ok = await confirmDialog({ title: 'Зургаа устгах уу?', ok: 'Устгах', danger: true });
+                  if (!ok) return;
+                  try {
+                    await fb.deleteGift(me);
+                    toast('Зураг устлаа');
+                  } catch (e) {
+                    toast(errText(e), 'error');
+                  }
+                },
+              }, 'Устгах')))));
+      } else {
+        if (!busy) pick.lastChild.textContent = 'Бэлгийн зураг оруулах';
+        mine.append(h('div', { class: 'gift-mine-actions' }, caption, h('div', { class: 'actions' }, pick)));
+      }
+    }
+
+    // Бүх зураг
+    const list = S.gifts;
+    grid.replaceChildren(...list.map((g, i) => {
+      const own = g.id === me;
+      const isMyVote = voted === g.id;
+      let action = null;
+      if (own) action = h('span', { class: 'gift-tag' }, 'Таны зураг');
+      else if (open && canTake) {
+        action = h('button', {
+          class: 'btn btn-small ' + (isMyVote ? 'btn-primary' : 'btn-ghost'), type: 'button', 'aria-pressed': isMyVote ? 'true' : 'false',
+          onclick: async (e) => {
+            e.currentTarget.disabled = true;
+            try {
+              if (isMyVote) await fb.unvote(me);
+              else await fb.vote(me, g.id);
+            } catch (er) {
+              toast(errText(er, 'Санал өгч чадсангүй'), 'error');
+            }
+          },
+        }, isMyVote ? '✓ Таны санал' : 'Санал өгөх');
+      }
+      return h('li', { class: 'gift-card' + (isMyVote ? ' voted' : '') },
+        h('button', { class: 'gift-img-btn', type: 'button', 'aria-label': `${i + 1}-р бэлгийн зургийг томруулах`, onclick: () => openPhoto(g.data, `${i + 1}-р бэлэг`) },
+          h('img', { src: g.data, alt: g.caption || `${i + 1}-р бэлэг`, loading: 'lazy', style: { aspectRatio: `1 / ${Math.min(g.ratio || 1, 1.5)}` } })),
+        h('div', { class: 'gift-card-body' },
+          g.caption ? h('p', { class: 'gift-caption' }, g.caption) : null,
+          action));
+    }));
+    grid.hidden = !list.length;
+    empty.textContent = list.length ? '' : 'Одоогоор зураг оруулаагүй байна.';
+    empty.hidden = !!list.length;
+  };
+  return el;
+}
+
+// ---------- Хэрхэн оролцох вэ ----------
+const HOW_TO = [
+  ['Бүртгүүлэх', 'Google-ээр нэвтэрч, мэдээллээ бөглөнө.'],
+  ['Монитаа харах', 'Монита эхлэхэд таны бэлэг өгөх хүн нүүр хуудсанд гарна.'],
+  ['Бэлгээ өгөх', 'Өдөр бүрийн сэдвийн дагуу бэлгээ нууцаар өгнө. Нэргүй захидлаар харилцаж болно.'],
+  ['Илчлэлт', 'Сүүлийн өдөр хэн хэнийг сонгосон, алтан монита хэн байсан нь илчлэгдэнэ.'],
+];
+function howToView(registered) {
+  return keep('howto:' + (registered ? 'in' : 'out'), () =>
+    h('section', { class: 'howto', 'aria-labelledby': 'howto-h-' + (registered ? 'in' : 'out') },
+      h('h2', { class: 'h-section', id: 'howto-h-' + (registered ? 'in' : 'out') }, 'Хэрхэн оролцох вэ'),
+      h('ol', { class: 'howto-steps' }, HOW_TO.map(([t, d], i) =>
+        h('li', { class: 'howto-step' + (registered && i === 0 ? ' done' : '') },
+          h('span', { class: 'howto-num', 'aria-hidden': 'true' }, registered && i === 0 ? '✓' : String(i + 1)),
+          h('div', null, h('p', { class: 'howto-title' }, t), h('p', { class: 'howto-desc' }, d)))))));
+}
+
+// ---------- Тоолуур ----------
+// Монита эхлэх (бүртгэлийн үед) эсвэл сүүлийн өдөр хүртэл (явагдаж байх үед) үлдсэн хугацаа.
+function countdownTarget() {
+  const c = S.config;
+  const now = Date.now();
+  if (c.state !== 'active' && c.startAt > now) return { at: c.startAt, label: 'Монита эхлэхэд' };
+  if (c.state === 'active' && !c.finalDay && c.finalAt > now) return { at: c.finalAt, label: 'Сүүлийн өдөр хүртэл' };
+  return null;
+}
+function countdownView() {
+  const el = keep('countdown', () => {
+    const label = h('p', { class: 'cd-label' });
+    const units = h('div', { class: 'cd-units' });
+    const when = h('p', { class: 'cd-when' });
+    const box = h('section', { class: 'countdown', role: 'timer', 'aria-live': 'off' }, label, units, when);
+    box.tick = () => {
+      const t = countdownTarget();
+      box.hidden = !t;
+      if (!t) return;
+      const left = Math.max(0, t.at - Date.now());
+      const d = Math.floor(left / 86400000);
+      const hh = Math.floor((left % 86400000) / 3600000);
+      const mm = Math.floor((left % 3600000) / 60000);
+      label.textContent = t.label;
+      const parts = (d > 0 ? [[d, 'өдөр']] : []).concat([[hh, 'цаг'], [mm, 'минут']]);
+      units.replaceChildren(...parts.map(([n, u]) =>
+        h('span', { class: 'cd-unit' }, h('span', { class: 'cd-num' }, String(n).padStart(u === 'өдөр' ? 1 : 2, '0')), h('span', { class: 'cd-word' }, u))));
+      when.textContent = fmtDate(t.at);
+    };
+    return box;
+  });
+  el.tick();
+  return countdownTarget() ? el : null;
+}
+setInterval(() => {
+  const el = document.querySelector('.countdown');
+  if (el && el.tick) {
+    const had = !el.hidden;
+    el.tick();
+    if (had && el.hidden) render();
+  }
+}, 20000);
+
+// Үнийн хязгаар, хүлээлгэн өгөх цаг, газар.
+function dayFacts(day) {
+  const facts = [
+    day.budget ? ['Үнийн дээд хязгаар', fmtMoney(day.budget)] : null,
+    day.time ? ['Хүлээлгэн өгөх цаг', day.time] : null,
+    day.place ? ['Газар', day.place] : null,
+  ].filter(Boolean);
+  if (!facts.length) return null;
+  return h('dl', { class: 'day-facts' }, facts.map(([k, v]) => h('div', { class: 'fact' }, h('dt', null, k), h('dd', null, v))));
+}
+
 function daySection(c) {
   const days = (c.days || []).map(normDay);
   const cur = Math.min(c.currentDay || 0, Math.max(days.length - 1, 0));
@@ -918,6 +1185,7 @@ function daySection(c) {
         h('p', { class: 'day-label' }, label, c.finalDay ? h('span', { class: 'final-pill' }, 'Сүүлийн өдөр') : null),
         theme ? h('p', { class: 'day-theme' }, theme) : null,
         full ? h('p', { class: 'day-date' }, h('span', { class: 'sr-only' }, 'Огноо: '), full) : null),
+      day.desc || dayFacts(day) ? h('div', { class: 'day-more' }, day.desc ? h('p', { class: 'day-desc' }, day.desc) : null, dayFacts(day)) : null,
       day.files.length
         ? h('div', { class: 'day-media' }, keep('daymedia:' + day.files[0], () =>
           adFigure({ id: 'day-' + day.files[0], files: day.files, ratios: day.ratios, title: theme || label })))
@@ -1185,7 +1453,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=15'));
+    ({ AVATARS: list } = await import('./avatars.js?v=16'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;

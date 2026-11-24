@@ -348,6 +348,13 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 /* Огнооны хавтан байгаа үед ижил мэдээллийг зөвхөн дэлгэц уншигчид үлдээнэ. */
 .day.has-date .day-date { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .day-media { width: min(100%, 240px); }
+.day-more { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.day-desc { font-size: 16px; line-height: 1.5; color: var(--text); max-width: 60ch; }
+.day-facts { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
+.day-facts .fact { padding: 8px 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255, 255, 255, .04); }
+.day-facts dt { font-size: 11px; color: var(--muted); letter-spacing: .02em; }
+.day-facts dd { margin: 2px 0 0; font: 500 15px var(--display); color: var(--text); }
+.day.has-date .day-body { align-items: start; }
 
 /* Огнооны хавтан */
 .date-tile {
@@ -382,6 +389,11 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
   .day.has-media .day-body { grid-template-columns: 1fr 260px; }
   .day.has-media.has-date .day-body { grid-template-columns: auto 1fr 260px; }
   .day-body .day-media { grid-column: auto; width: 100%; }
+  .day.has-date .day-more { grid-column: 2; }
+  .day.has-date .date-tile { grid-row: 1 / span 2; align-self: start; }
+  .day.has-date .day-text { align-self: end; }
+  .day:not(.has-date) .day-more { grid-column: 1; }
+  .day.has-media .day-media { grid-column: -2; grid-row: 1 / span 2; align-self: start; }
   .date-tile { width: 116px; padding: 16px 10px 14px; }
   .dt-day { font-size: 56px; }
 }
@@ -617,6 +629,13 @@ select.input option { background: var(--bg-2); color: var(--text); }
 .day-media-edit { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; grid-column: 1 / -1; }
 .day-media-edit .ad { width: 110px; }
 .input-date { color-scheme: dark; }
+.day-details { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr; gap: 10px; }
+.mini-field { display: flex; flex-direction: column; gap: 4px; }
+.mini-label { font-size: 12px; color: var(--muted); }
+@media (min-width: 820px) {
+  .day-details { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .day-details .wide { grid-column: 1 / -1; }
+}
 .day-row { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255, 255, 255, .03); }
 .day-row.current { border-color: var(--cyan); }
 .day-num { font: 400 14px var(--display); letter-spacing: .04em; }
@@ -780,3 +799,79 @@ ul.change-list li::before { content: ''; position: absolute; left: 0; top: .6em;
 /* Аюултай үйлдэл */
 .danger-zone { border-color: rgba(255, 120, 160, .35); }
 .account.danger-zone { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px 18px; border: 1px solid rgba(255, 120, 160, .35); border-radius: 18px; }
+
+/* Тоолуур */
+.countdown { display: flex; flex-direction: column; gap: 8px; padding: 14px 18px; border-radius: 18px; border: 1px solid transparent;
+  background: linear-gradient(rgba(42, 20, 80, .85), rgba(42, 20, 80, .85)) padding-box, var(--iris) border-box; align-self: flex-start; }
+.countdown[hidden] { display: none; }
+.cd-label { font: 400 13px var(--display); letter-spacing: .06em; color: var(--cyan); }
+.cd-units { display: flex; gap: 14px; align-items: baseline; }
+.cd-unit { display: inline-flex; align-items: baseline; gap: 5px; }
+.cd-num { font: 600 32px/1 var(--brand); font-variant-numeric: tabular-nums;
+  background: var(--iris); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cd-word { font-size: 13px; color: var(--muted); }
+.cd-when { font-size: 12px; color: var(--muted); }
+.intro .countdown { margin: 4px 0 6px; }
+
+/* Хэрхэн оролцох вэ */
+.howto { display: flex; flex-direction: column; gap: 14px; width: 100%; }
+.howto-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.howto-step { display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); }
+.howto-num { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 500 14px var(--display); color: var(--bg); background: var(--iris); }
+.howto-step.done .howto-num { background: var(--gold-grad); }
+.howto-title { font: 500 16px var(--display); }
+.howto-desc { font-size: 14px; color: var(--muted); line-height: 1.45; margin-top: 2px; }
+.landing .howto { text-align: left; }
+@media (min-width: 820px) {
+  .howto-steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .howto-step { flex-direction: column; }
+}
+@media (min-width: 960px) {
+  .landing { grid-template-areas: 'text art' 'signin art' 'how how' 'ads ads' 'foot foot'; }
+  .landing .howto { grid-area: how; }
+}
+
+/* Шилдэг бэлэг */
+.gifts-panel { gap: 16px; }
+.gift-winner-wrap { display: grid; gap: 14px; }
+.gift-winner-wrap:empty { display: none; }
+.gift-winner { display: grid; gap: 14px; padding: 14px; border-radius: 20px; border: 1px solid transparent;
+  background: linear-gradient(rgba(52, 27, 94, .92), rgba(52, 27, 94, .92)) padding-box, var(--gold-grad) border-box; }
+.gift-winner img { width: 100%; max-height: 360px; object-fit: cover; border-radius: 14px; display: block; }
+.gift-winner-text { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.gift-mine:empty { display: none; }
+.gift-mine-row { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+.gift-mine-img { width: 110px; height: 110px; object-fit: cover; border-radius: 14px; border: 1px solid var(--line); }
+.gift-mine-actions { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 10px; }
+.gift-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.gift-grid[hidden] { display: none; }
+.gift-card { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: rgba(255, 255, 255, .03); }
+.gift-card.voted { border-color: var(--cyan); }
+.gift-img-btn { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
+.gift-card img { width: 100%; object-fit: cover; display: block; }
+.gift-card-body { display: flex; flex-direction: column; gap: 8px; padding: 10px; flex: 1; justify-content: space-between; }
+.gift-caption { font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.gift-tag { font-size: 12px; color: var(--muted); }
+.vote-list { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; }
+.vote-list li span { margin-right: 8px; }
+@media (min-width: 700px) { .gift-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1000px) {
+  .gift-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .gift-winner { grid-template-columns: minmax(0, 340px) minmax(0, 1fr); align-items: center; }
+}
+
+/* Админы статистик */
+.stats-panel { display: grid; gap: 22px; }
+.stats-block { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.meter-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.meter-row { display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: 'name fig' 'bar bar'; gap: 6px 12px; align-items: center; }
+.meter-name { grid-area: name; font: 500 14px var(--display); }
+.meter-fig { grid-area: fig; font-size: 13px; color: var(--muted); justify-self: end; }
+.meter-track { grid-area: bar; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+.meter-bar { display: block; height: 100%; min-width: 8px; border-radius: 4px; background: #3D97D9; }
+.chip-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 13px; background: rgba(255, 255, 255, .04); }
+@media (min-width: 820px) {
+  .stats-panel { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 32px; }
+  .meter-row { grid-template-columns: 70px minmax(0, 1fr) auto; grid-template-areas: 'name bar fig'; }
+}
