@@ -1,10 +1,10 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay, parseDay, fmtDay, fmtMoney,
   toMillis, errText,
-} from './ui.js?v=16';
-import * as fb from './fb.js?v=16';
-import { adminContent, startAdminSubs } from './admin.js?v=16';
-import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=16';
+} from './ui.js?v=17';
+import * as fb from './fb.js?v=17';
+import { adminContent, startAdminSubs } from './admin.js?v=17';
+import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=17';
 
 // ---------- Төлөв ----------
 const S = {
@@ -94,6 +94,46 @@ function patch(parent, kids) {
   });
 }
 
+// ---------- Алдааны бүртгэл ----------
+// Хэрэглэгчид харагдсан алдаа болон гэнэтийн алдааг админы «Алдаа» хэсэгт хадгална.
+const APP_VERSION = (() => {
+  try {
+    return new URL(import.meta.url).searchParams.get('v') || '';
+  } catch (_) {
+    return '';
+  }
+})();
+const reportedErrors = new Set();
+let leaving = false;
+function reportError(where, info) {
+  if (!S.user || leaving || reportedErrors.size >= 20) return;
+  const raw = info && typeof info === 'object' ? info.raw || info.message || '' : String(info || '');
+  const msg = (info && info.msg ? info.msg + (raw && raw !== info.msg ? ' | ' + raw : '') : raw).slice(0, 300);
+  const code = String((info && info.code) || '').slice(0, 60);
+  if (!msg && !code) return;
+  const key = where + '|' + code + '|' + msg;
+  if (reportedErrors.has(key)) return;
+  reportedErrors.add(key);
+  fb.logError(S.user.uid, {
+    where: where.slice(0, 60), msg, code,
+    page: (location.hash || '#home').slice(0, 40), ua: navigator.userAgent.slice(0, 200), v: APP_VERSION.slice(0, 10),
+  }).catch(() => {});
+}
+// Гарах үед сонсогчид "эрх алга" алдаа өгдөг тул тэр үеийн алдааг бүртгэхгүй.
+function signOutNow() {
+  leaving = true;
+  return fb.logOut();
+}
+document.addEventListener('monita:error', (ev) => reportError('харагдсан алдаа', ev.detail));
+window.addEventListener('error', (ev) => {
+  const e = ev.error || {};
+  reportError('скрипт', { raw: (e.message || ev.message || '') + (ev.filename ? ` @${ev.filename.split('/').pop()}:${ev.lineno}` : ''), code: e.code });
+});
+window.addEventListener('unhandledrejection', (ev) => {
+  const r = ev.reason || {};
+  reportError('promise', { raw: r.message || String(r), code: r.code });
+});
+
 // ---------- Холбоо барих, хувийн мэдээлэл ----------
 const CONTACT_URL = 'https://www.instagram.com/arxi.verse_25/';
 
@@ -118,7 +158,8 @@ function openPrivacy() {
         'Бусад оролцогч болон гадны хүн таны мэдээллийг харахгүй.',
       ])),
     sec('Хаана, хэр удаан хадгалдаг вэ',
-      h('p', null, 'Google-ийн Firebase үйлчилгээнд хадгалагдана. Монита дууссаны дараа админ оролцогчдын бүх мэдээллийг устгана. Сайт таны Google нууц үгийг хэзээ ч харахгүй, хадгалахгүй.')),
+      h('p', null, 'Google-ийн Firebase үйлчилгээнд хадгалагдана. Монита явагдаж байх үед админ алдаанаас сэргийлж нөөц хуулбар татаж болно. Монита дууссаны дараа админ оролцогчдын бүх мэдээлэл болон нөөц хуулбарыг устгана. Сайт таны Google нууц үгийг хэзээ ч харахгүй, хадгалахгүй.'),
+      h('p', null, 'Сайтад алдаа гарвал засварлахын тулд алдааны тайлбар, хуудас, төхөөрөмж ба хөтчийн төрөл хадгалагдана.')),
     sec('Таны эрх',
       h('p', null, 'Монита эхлэхээс өмнө мэдээллээ засах, Профайл хэсгээс бүртгэлээ өөрөө устгах боломжтой. Монита явагдаж байх үед устгуулах бол админд хандана уу.')),
     sec('Холбоо барих', h('p', null, contactLink()))),
@@ -616,7 +657,7 @@ function errorView(msg) {
         h('p', { class: 'small' }, msg),
         h('div', { class: 'actions' },
           h('button', { class: 'btn btn-primary btn-small', type: 'button', onclick: () => location.reload() }, 'Дахин ачаалах'),
-          h('button', { class: 'btn btn-small', type: 'button', onclick: () => fb.logOut() }, 'Гарах')))));
+          h('button', { class: 'btn btn-small', type: 'button', onclick: () => signOutNow() }, 'Гарах')))));
 }
 
 function loadingView() {
@@ -625,7 +666,7 @@ function loadingView() {
       h('p', null, 'Ачаалахад удаж байна. Интернэт холболтоо шалгаад дахин оролдоно уу.'),
       h('div', { class: 'actions' },
         h('button', { class: 'btn btn-primary btn-small', type: 'button', onclick: () => location.reload() }, 'Дахин ачаалах'),
-        h('button', { class: 'btn btn-small', type: 'button', onclick: () => fb.logOut() }, 'Гарах')));
+        h('button', { class: 'btn btn-small', type: 'button', onclick: () => signOutNow() }, 'Гарах')));
     const el = h('div', { class: 'loading' },
       h('div', { class: 'loading-inner' }, svg(GIFT_MINI, 'loading-mark'), h('span', { class: 'sr-only' }, 'Ачаалж байна'), help));
     // Ачаалах дэлгэц 12 секундээс удаан харагдвал тусламж гаргана.
@@ -672,7 +713,7 @@ function topbar(tabs) {
     h('div', { class: 'topbar-inner' },
       h('a', { class: 'brand', href: '#home', 'aria-label': 'Монита, нүүр хуудас' }, svg(GIFT_MINI, 'brand-mark'), h('span', { class: 'brand-name' }, 'Монита')),
       tabs.length > 1 ? h('nav', { class: 'tabs', 'aria-label': 'Үндсэн цэс' }, tabs.map(tabLink)) : h('span', { class: 'spacer' }),
-      h('button', { class: 'icon-btn', type: 'button', title: 'Гарах', 'aria-label': 'Гарах', onclick: () => fb.logOut() }, svg(icons.logout))));
+      h('button', { class: 'icon-btn', type: 'button', title: 'Гарах', 'aria-label': 'Гарах', onclick: () => signOutNow() }, svg(icons.logout))));
 }
 
 function tabbar(tabs) {
@@ -1292,7 +1333,7 @@ function accountSwitch(hint) {
       h('p', { class: 'muted small' }, 'Нэвтэрсэн Gmail'),
       h('p', { class: 'account-email' }, S.user.email),
       hint ? h('p', { class: 'muted small' }, hint) : null),
-    h('button', { class: 'btn btn-small', type: 'button', onclick: () => fb.logOut() }, svg(icons.logout), 'Өөр Gmail-ээр нэвтрэх'));
+    h('button', { class: 'btn btn-small', type: 'button', onclick: () => signOutNow() }, svg(icons.logout), 'Өөр Gmail-ээр нэвтрэх'));
 }
 
 function registerContent() {
@@ -1343,7 +1384,7 @@ function profileContent() {
   right.push(installPanel());
   right.push(h('section', { class: 'account' },
     h('div', null, h('p', { class: 'muted small' }, 'Google бүртгэл'), h('p', { class: 'account-email' }, S.user.email)),
-    h('button', { class: 'btn btn-ghost', type: 'button', onclick: () => fb.logOut() }, svg(icons.logout), 'Гарах')));
+    h('button', { class: 'btn btn-ghost', type: 'button', onclick: () => signOutNow() }, svg(icons.logout), 'Гарах')));
   if (S.config.state === 'registration' && !S.editing) right.push(deleteAccountPanel());
   if (!S.isAdmin) right.push(keep('form:admin', adminCodeForm));
   const colL = keep('profile:left', () => h('div', { class: 'profile-col' }));
@@ -1453,7 +1494,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=16'));
+    ({ AVATARS: list } = await import('./avatars.js?v=17'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;

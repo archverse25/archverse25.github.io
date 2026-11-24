@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay } from './ui.js?v=16';
-import * as fb from './fb.js?v=16';
-import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=16';
-import { fileToPages } from './media.js?v=16';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay, isoDay, parseDay } from './ui.js?v=17';
+import * as fb from './fb.js?v=17';
+import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=17';
+import { fileToPages } from './media.js?v=17';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
@@ -29,6 +29,10 @@ export function startAdminSubs(S, render, loud) {
     S.admin.votes = list;
     render();
   }, () => {});
+  const u7 = fb.watch.allErrors((list) => {
+    S.admin.errors = list;
+    render();
+  }, () => {});
   return () => {
     u1();
     u2();
@@ -36,6 +40,7 @@ export function startAdminSubs(S, render, loud) {
     u4();
     u5();
     u6();
+    u7();
   };
 }
 
@@ -44,10 +49,23 @@ const SUBS = [
   ['monita', 'Монита'],
   ['notify', 'Мэдэгдэл'],
   ['ads', 'Зар'],
+  ['errors', 'Алдаа'],
 ];
+
+function goSub(ctx, id) {
+  ctx.S.admin.sub = id;
+  try {
+    sessionStorage.setItem('monita:adminSub', id);
+  } catch (_) {
+    /* */
+  }
+  ctx.render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 export function adminContent(ctx) {
   const { S, render } = ctx;
+  const errCount = (S.admin.errors || []).length;
   const nav = h('div', { class: 'subnav', role: 'tablist', 'aria-label': 'Админы хэсэг' },
     SUBS.map(([id, label]) =>
       h('button', {
@@ -64,14 +82,112 @@ export function adminContent(ctx) {
           }
           render();
         },
-      }, label)));
-  const out = [h('header', { class: 'page-head' }, h('h1', { class: 'h-display' }, 'Админ')), nav];
+      }, label, id === 'errors' && errCount ? h('span', { class: 'subnav-count' }, String(errCount)) : null)));
+  const out = [h('header', { class: 'page-head' }, h('h1', { class: 'h-display' }, 'Админ')), nav, remindersPanel(ctx)];
   const sub = S.admin.sub;
   if (sub === 'monita') out.push(...monitaSection(ctx));
   else if (sub === 'notify') out.push(...notifySection(ctx));
   else if (sub === 'ads') out.push(...adsSection(ctx));
+  else if (sub === 'errors') out.push(...errorsSection(ctx));
   else out.push(...peopleSection(ctx));
   return out;
+}
+
+// ---------- Сануулга: өнөөдөр админ юу хийх ёстой ----------
+function reminders(S) {
+  const c = S.config;
+  const now = Date.now();
+  const out = [];
+  const days = (c.days || []).map(normDay);
+  if (c.state !== 'active') {
+    if (c.startAt && now >= c.startAt) out.push({ text: 'Монита эхлэх хугацаа боллоо. Бэлэн бол монитаг эхлүүлнэ үү.', go: 'monita', label: 'Монита хэсэг рүү' });
+    else if (c.startAt && c.startAt - now < 86400000) out.push({ text: `Монита 24 цагийн дотор эхэлнэ. Одоогоор ${people(S).length} оролцогч бүртгэлтэй.` });
+  } else {
+    const cur = Math.min(c.currentDay || 0, Math.max(days.length - 1, 0));
+    const today = isoDay(new Date());
+    const idx = days.findIndex((d) => d.date === today);
+    if (!c.finalDay && idx >= 0 && idx !== cur) {
+      const p = parseDay(today);
+      out.push({
+        text: `Өнөөдөр ${p.mo}/${p.d}: ${idx + 1}-р өдөр. Одоо ${cur + 1}-р өдөр идэвхтэй байна.`,
+        action: { label: `${idx + 1}-р өдөр рүү шилжих`, run: () => fb.updateConfig({ currentDay: idx }), done: `${idx + 1}-р өдөр рүү шилжлээ` },
+      });
+    }
+    if (days.length && days.some((d) => !d.date)) out.push({ text: 'Зарим өдрийн огноо оруулаагүй байна. Огноотой бол өдөр солих сануулга гарна.', go: 'monita', label: 'Өдрүүд рүү' });
+    if (!c.finalDay && c.finalAt && now >= c.finalAt) out.push({ text: 'Сүүлийн өдрийн хугацаа боллоо. Сүүлийн өдрийг идэвхжүүлнэ үү.', go: 'monita', label: 'Монита хэсэг рүү' });
+    if (c.finalDay && c.voting !== 'closed') out.push({ text: `Шилдэг бэлгийн санал хураалт явагдаж байна (${(S.admin.votes || []).length} санал). Дуусмагц дүнг зарлаарай.`, go: 'monita', label: 'Санал хураалт' });
+    if (c.finalDay && c.voting === 'closed') out.push({ text: 'Монита дууссан бол хувийн мэдээллийн бодлогын дагуу оролцогчдын мэдээллийг устгаарай.', go: 'monita', label: 'Устгах хэсэг рүү' });
+    if (!c.adminLocked) out.push({ text: 'Админ код нээлттэй байна. Бүх админ нэмэгдсэн бол хаагаарай.', go: 'monita', label: 'Админууд' });
+  }
+  const recent = (S.admin.errors || []).filter((e) => now - toMillis(e.at) < 86400000).length;
+  if (recent) out.push({ text: `Сүүлийн 24 цагт ${recent} алдаа бүртгэгдсэн.`, go: 'errors', label: 'Алдаа харах' });
+  return out;
+}
+function remindersPanel(ctx) {
+  const list = reminders(ctx.S);
+  if (!list.length) return null;
+  return h('section', { class: 'reminders', 'aria-label': 'Сануулга' },
+    h('ul', null, list.map((r) => {
+      let btn = null;
+      if (r.action) {
+        btn = h('button', { class: 'btn btn-small btn-primary', type: 'button' }, r.action.label);
+        btn.addEventListener('click', async () => {
+          btn.disabled = true;
+          try {
+            await r.action.run();
+            toast(r.action.done || 'Боллоо');
+          } catch (e) {
+            toast(errText(e), 'error');
+            btn.disabled = false;
+          }
+        });
+      } else if (r.go && ctx.S.admin.sub !== r.go) {
+        btn = h('button', { class: 'btn btn-small btn-ghost', type: 'button', onclick: () => goSub(ctx, r.go) }, r.label);
+      }
+      return h('li', null, h('p', null, r.text), btn);
+    })));
+}
+
+// ---------- Алдааны бүртгэл ----------
+function deviceOf(ua) {
+  const os = /iPhone|iPad/.test(ua) ? 'iPhone/iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac OS/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : 'Бусад';
+  const br = /Instagram/.test(ua) ? 'Instagram' : /FBAN|FBAV|Messenger/.test(ua) ? 'Facebook' : /Edg\//.test(ua) ? 'Edge' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /Firefox|FxiOS/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'Хөтөч';
+  return `${os}, ${br}`;
+}
+function errorsSection(ctx) {
+  const { S } = ctx;
+  const byId = byIdMap(S);
+  const list = (S.admin.errors || []).slice().sort((a, b) => toMillis(b.at) - toMillis(a.at));
+  const clear = h('button', { class: 'btn btn-small btn-ghost', type: 'button', disabled: !list.length }, svg(icons.trash), 'Бүгдийг цэвэрлэх');
+  clear.addEventListener('click', async () => {
+    const ok = await confirmDialog({ title: 'Бүх алдааг цэвэрлэх үү?', ok: 'Цэвэрлэх', danger: true });
+    if (!ok) return;
+    try {
+      await fb.clearErrors();
+      toast('Цэвэрлэлээ');
+    } catch (e) {
+      toast(errText(e), 'error');
+    }
+  });
+  return [h('section', { class: 'panel' },
+    h('div', { class: 'panel-head' }, h('h2', { class: 'h-section' }, 'Алдааны бүртгэл'), clear),
+    h('p', { class: 'muted' }, 'Оролцогчдод алдаа гарахад энд автоматаар бүртгэгдэнэ. Давтагдсан алдаа нэг мөрөнд шинэчлэгдэнэ. Засах шаардлагатай алдааг зураг дарж илгээгээрэй.'),
+    list.length
+      ? h('ul', { class: 'error-list' }, list.map((e) => {
+        const u = byId[e.uid];
+        return h('li', { class: 'error-item' },
+          h('div', { class: 'error-meta' },
+            h('b', null, u ? shortName(u) : 'Бүртгэлгүй хэрэглэгч'),
+            h('span', null, fmtDate(e.at)),
+            h('span', null, deviceOf(e.ua || '')),
+            h('span', null, `${e.page || ''} v${e.v || '?'}`)),
+          h('p', { class: 'error-msg' }, e.msg || '—'),
+          h('p', { class: 'muted small' }, [e.where, e.code].filter(Boolean).join(', ')),
+          h('button', {
+            class: 'icon-btn', type: 'button', 'aria-label': 'Устгах', onclick: () => fb.deleteError(e.id).catch((er) => toast(errText(er), 'error')),
+          }, svg(icons.close)));
+      }))
+      : h('p', { class: 'muted' }, 'Алдаа бүртгэгдээгүй байна.'))];
 }
 
 function people(S) {
@@ -164,7 +280,7 @@ async function exportExcel(ctx, btn) {
   if (!users.length) return toast('Оролцогч алга байна.');
   btn.disabled = true;
   try {
-    const XLSX = await import('../vendor/xlsx.js?v=16');
+    const XLSX = await import('../vendor/xlsx.js?v=17');
     const byId = byIdMap(S);
     const assign = S.admin.assign;
     const active = S.config.state === 'active';
@@ -343,7 +459,81 @@ function monitaSection(ctx) {
   days.sync();
   const sched = ctx.keep('admin:schedule', () => schedulePanel(ctx));
   sched.sync();
-  return [status, active && c.finalDay ? votePanel(ctx) : null, sched, days, adminsPanel(ctx), wipePanel(ctx)];
+  return [status, active && c.finalDay ? votePanel(ctx) : null, sched, days, adminsPanel(ctx), backupPanel(ctx), wipePanel(ctx)];
+}
+
+// ---------- Нөөц хуулбар ----------
+function backupPanel(ctx) {
+  const dl = h('button', { class: 'btn btn-primary', type: 'button' }, svg(icons.download), 'Нөөц татах');
+  dl.addEventListener('click', async () => {
+    dl.disabled = true;
+    try {
+      const b = await fb.exportBackup();
+      const blob = new Blob([JSON.stringify(b)], { type: 'application/json' });
+      const a = h('a', { href: URL.createObjectURL(blob), download: `monita-noots-${isoDay(new Date())}.json` });
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        URL.revokeObjectURL(a.href);
+        a.remove();
+      }, 1000);
+      toast('Нөөц татагдлаа');
+    } catch (e) {
+      console.error(e);
+      toast(errText(e, 'Нөөц татаж чадсангүй'), 'error');
+    } finally {
+      dl.disabled = false;
+    }
+  });
+  const fileId = 'restore-' + Math.random().toString(36).slice(2, 7);
+  const file = h('input', { type: 'file', accept: 'application/json,.json', class: 'sr-only', id: fileId });
+  const pick = h('label', { class: 'btn btn-ghost', for: fileId }, svg(icons.upload), 'Нөөцөөс сэргээх');
+  file.addEventListener('change', async () => {
+    const f = file.files && file.files[0];
+    file.value = '';
+    if (!f) return;
+    let b;
+    try {
+      b = JSON.parse(await f.text());
+    } catch (_) {
+      return toast('Файлыг уншиж чадсангүй. Энэ сайтаас татсан нөөц файл сонгоно уу.', 'error');
+    }
+    const sum = fb.backupSummary(b);
+    if (!sum) return toast('Энэ файл монитагийн нөөц биш байна.', 'error');
+    const input = h('input', { class: 'input', placeholder: 'СЭРГЭЭХ', autocomplete: 'off', 'aria-label': 'Баталгаажуулах үг' });
+    const go = h('button', { class: 'btn btn-danger', type: 'button', disabled: true }, 'Сэргээх');
+    input.addEventListener('input', () => (go.disabled = input.value.trim().toUpperCase() !== 'СЭРГЭЭХ'));
+    const c = sum.counts;
+    const close = openDialog(h('div', null,
+      h('p', { class: 'dialog-text' }, `${fmtDate(sum.exportedAt)}-ны нөөц: ${c.users} оролцогч, ${c.assignments} холболт, ${c.letters} захидал, ${c.notifications} мэдэгдэл.`),
+      h('p', { class: 'muted small' }, 'Нөөцөд байгаа мэдээлэл одоогийнхыг дарж бичнэ. Нөөцийн дараа бүртгүүлсэн хүмүүс устахгүй. Профайл зураг сэргээгдэхгүй.'),
+      h('p', { class: 'muted small' }, 'Баталгаажуулахын тулд СЭРГЭЭХ гэж бичнэ үү.'),
+      input,
+      h('div', { class: 'dialog-actions' }, h('button', { class: 'btn btn-ghost', type: 'button', onclick: () => close() }, 'Болих'), go)),
+    { title: 'Нөөцөөс сэргээх үү?' });
+    go.addEventListener('click', async () => {
+      go.disabled = true;
+      input.disabled = true;
+      go.textContent = 'Сэргээж байна…';
+      try {
+        await fb.restoreBackup(b);
+        close();
+        toast('Нөөцөөс сэргээлээ');
+      } catch (e) {
+        console.error(e);
+        go.textContent = 'Сэргээх';
+        go.disabled = false;
+        input.disabled = false;
+        toast(errText(e, 'Сэргээж чадсангүй'), 'error');
+      }
+    });
+    setTimeout(() => input.focus(), 50);
+  });
+  return h('section', { class: 'panel' },
+    h('h2', { class: 'h-section' }, 'Нөөц хуулбар'),
+    h('p', { class: 'muted' }, 'Холболт, өдрүүд, оролцогчдын мэдээлэл, захидлыг нэг файлаар татна. Санамсаргүй устгал эсвэл алдаа гарвал энэ файлаас сэргээнэ. Монита эхэлсний дараа болон чухал өөрчлөлтийн өмнө татаж аваарай.'),
+    h('p', { class: 'note' }, 'Файлд оролцогчдын хувийн мэдээлэл бий. Бусдад бүү дамжуул, монита дууссаны дараа устгаарай.'),
+    h('div', { class: 'actions' }, dl, pick), file);
 }
 
 // Шилдэг бэлгийн санал хураалт: явц, дүн зарлах.

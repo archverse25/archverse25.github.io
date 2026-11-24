@@ -4,8 +4,8 @@ import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, collection, query, where, onSnapshot, getDoc, getDocs, getDocFromCache, setDoc,
   deleteDoc, writeBatch, serverTimestamp, terminate, clearIndexedDbPersistence,
-} from '../vendor/firebase.js?v=16';
-import { firebaseConfig } from './config.js?v=16';
+} from '../vendor/firebase.js?v=17';
+import { firebaseConfig } from './config.js?v=17';
 
 
 export const app = initializeApp(firebaseConfig);
@@ -126,6 +126,8 @@ export const watch = {
     onSnapshot(collection(db, 'gifts'), (qs) => cb(qs.docs.map((d) => ({ id: d.id, ...d.data(est) }))), err),
   myVote: (uid, cb, err) => watchDoc(doc(db, 'votes', uid), cb, err),
   reads: (uid, cb, err) => watchDoc(doc(db, 'reads', uid), cb, err),
+  allErrors: (cb, err) =>
+    onSnapshot(collection(db, 'errors'), (qs) => cb(qs.docs.map((d) => ({ id: d.id, ...d.data(est) }))), err),
   allVotes: (cb, err) =>
     onSnapshot(collection(db, 'votes'), (qs) => cb(qs.docs.map((d) => ({ id: d.id, entry: d.data().entry }))), err),
   // Код өөрөө харагдахгүй: зөвхөн имэйл, огноо.
@@ -141,6 +143,76 @@ export const saveGift = (uid, data, ratio, caption) =>
 export const deleteGift = (uid) => deleteDoc(doc(db, 'gifts', uid));
 export const vote = (uid, entry) => setDoc(doc(db, 'votes', uid), { entry, createdAt: serverTimestamp() });
 export const unvote = (uid) => deleteDoc(doc(db, 'votes', uid));
+
+// ---------- Алдааны бүртгэл ----------
+// Хэрэглэгч бүр хамгийн ихдээ 50 бичлэгтэй: ижил алдаа давтагдвал нэг бичлэгээ шинэчилнэ.
+function hashStr(s) {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+export function logError(uid, entry) {
+  const slot = 'e' + String(hashStr(entry.where + '|' + entry.code + '|' + entry.msg) % 50).padStart(2, '0');
+  return setDoc(doc(db, 'errors', `${uid}_${slot}`), { ...entry, uid, at: serverTimestamp() });
+}
+export const deleteError = (id) => deleteDoc(doc(db, 'errors', id));
+export const clearErrors = () => clearCollections(['errors']);
+
+// ---------- Нөөц хуулбар ----------
+// Firestore-ийн огноог {__ts: мс} болгож JSON-д хадгалж, сэргээхэд Date болгоно.
+function enc(v) {
+  if (v && typeof v === 'object') {
+    if (typeof v.toMillis === 'function') return { __ts: v.toMillis() };
+    if (Array.isArray(v)) return v.map(enc);
+    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, enc(x)]));
+  }
+  return v;
+}
+function dec(v) {
+  if (v && typeof v === 'object') {
+    if (typeof v.__ts === 'number' && Object.keys(v).length === 1) return new Date(v.__ts);
+    if (Array.isArray(v)) return v.map(dec);
+    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, dec(x)]));
+  }
+  return v;
+}
+const BACKUP_COLS = ['users', 'assignments', 'letters', 'notifications', 'votes'];
+export async function exportBackup() {
+  const data = {};
+  const cfg = await getDoc(CONFIG());
+  data.config = cfg.exists() ? enc(cfg.data()) : null;
+  for (const col of BACKUP_COLS) {
+    const qs = await getDocs(collection(db, col));
+    data[col] = qs.docs.map((d) => ({ id: d.id, ...enc(d.data()) }));
+  }
+  return { app: 'monita', format: 1, exportedAt: Date.now(), data };
+}
+export function backupSummary(b) {
+  if (!b || b.app !== 'monita' || b.format !== 1 || !b.data || typeof b.data !== 'object') return null;
+  const n = {};
+  for (const col of BACKUP_COLS) {
+    if (b.data[col] && !Array.isArray(b.data[col])) return null;
+    n[col] = (b.data[col] || []).length;
+  }
+  return { exportedAt: b.exportedAt, counts: n, state: b.data.config && b.data.config.state };
+}
+// Нөөцөд байгаа баримтуудыг сэргээнэ (нөөцөд байхгүй шинэ баримтыг устгахгүй). Профайл зураг сэргээгдэхгүй.
+export async function restoreBackup(b) {
+  const d = b.data;
+  const users = d.users || [];
+  await inChunks(users.map((u) => async () => {
+    const { id, ...rest } = u;
+    await setDoc(doc(db, 'users', id), dec(rest));
+    if (rest.studentCode) await setDoc(doc(db, 'studentCodes', rest.studentCode), { uid: id });
+  }));
+  for (const col of ['assignments', 'letters', 'notifications', 'votes']) {
+    await inChunks((d[col] || []).map((x) => () => {
+      const { id, ...rest } = x;
+      return setDoc(doc(db, col, id), dec(rest));
+    }));
+  }
+  if (d.config) await setDoc(CONFIG(), dec(d.config), { merge: true });
+}
 
 // ---------- Уншсан төлөв (төхөөрөмж хооронд) ----------
 export const saveReads = (uid, patch) => setDoc(doc(db, 'reads', uid), patch, { merge: true });
@@ -272,7 +344,7 @@ export async function freshUsers() {
 // Монита дууссаны дараа оролцогчдын бүх мэдээллийг устгана. Зар, өдрийн сэдэв, админууд үлдэнэ.
 export async function wipeParticipantData() {
   await updateConfig({ state: 'registration', finalDay: false, currentDay: 0, voting: 'open', giftWinner: null });
-  await clearCollections(['assignments', 'letters', 'notifications', 'thumbs', 'gifts', 'votes']);
+  await clearCollections(['assignments', 'letters', 'notifications', 'thumbs', 'gifts', 'votes', 'errors']);
   const users = await freshUsers();
   await inChunks(users.map((u) => async () => {
     const b = writeBatch(db);

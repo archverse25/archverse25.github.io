@@ -875,3 +875,19 @@ ul.change-list li::before { content: ''; position: absolute; left: 0; top: .6em;
   .stats-panel { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 32px; }
   .meter-row { grid-template-columns: 70px minmax(0, 1fr) auto; grid-template-areas: 'name bar fig'; }
 }
+
+/* Админы сануулга */
+.reminders ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.reminders li { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-radius: 16px;
+  border: 1px solid rgba(255, 210, 122, .45); background: rgba(255, 210, 122, .08); }
+.reminders li p { flex: 1; min-width: 200px; font-size: 14px; line-height: 1.45; }
+.subnav-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; margin-left: 6px; padding: 0 6px; border-radius: 999px; font-size: 12px; background: #FF7AA8; color: #2A1450; }
+
+/* Алдааны бүртгэл */
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.error-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.error-item { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 12px 48px 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255, 255, 255, .03); }
+.error-item .icon-btn { position: absolute; top: 8px; right: 8px; }
+.error-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--muted); }
+.error-meta b { color: var(--text); font-weight: 500; }
+.error-msg { font-size: 14px; overflow-wrap: anywhere; }

@@ -117,7 +117,15 @@ export const DECO_ART = `<svg class="deco-svg" viewBox="0 0 1000 700" preserveAs
 </svg>`;
 
 let toastTimer;
+// Хэрэглэгчид харагдсан алдааг бүртгэлд дамжуулна (app.js сонсоно).
+let lastError = null;
 export function toast(msg, kind = 'info') {
+  if (kind === 'error') {
+    const recent = lastError && Date.now() - lastError.at < 2000 ? lastError.e : null;
+    document.dispatchEvent(new CustomEvent('monita:error', {
+      detail: { msg: String(msg), code: (recent && recent.code) || '', raw: (recent && recent.message) || '' },
+    }));
+  }
   let el = document.getElementById('toast');
   if (!el) {
     el = h('div', { id: 'toast', role: 'status', 'aria-live': 'polite' });
@@ -246,6 +254,7 @@ export function fmtDate(t) {
 
 // Firebase алдааг ойлгомжтой болгох. Кодыг нь хадгална — дэлгэцийн зураг илгээхэд хэрэгтэй.
 export function errText(e, fallback = 'Алдаа гарлаа') {
+  if (e && typeof e === 'object') lastError = { e, at: Date.now() };
   const code = (e && e.code) || '';
   const map = {
     'permission-denied': 'Энэ үйлдлийг хийх эрх алга.',
