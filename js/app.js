@@ -1,10 +1,10 @@
 import {
-  h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay, parseDay, fmtDay, fmtMoney,
+  h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, motif, setMotif, burst, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay, parseDay, fmtDay, fmtMoney,
   toMillis, errText,
-} from './ui.js?v=20';
-import * as fb from './fb.js?v=20';
-import { adminContent, startAdminSubs } from './admin.js?v=20';
-import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=20';
+} from './ui.js?v=21';
+import * as fb from './fb.js?v=21';
+import { adminContent, startAdminSubs } from './admin.js?v=21';
+import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=21';
 
 // ---------- Төлөв ----------
 const S = {
@@ -582,9 +582,55 @@ function render() {
 }
 
 const THEME_COLORS = { home: '#2A1450', profile: '#1D1A52', notifications: '#2F1447', admin: '#150E38' };
+// ---------- Хөвөх дүрсүүд (зүрх, цэцэг, бэлэг, од) ----------
+// Хуудас бүрт өөр холимог: нүүр бэлэг, зүрхтэй; профайл цэцэгтэй; мэдэгдэл одтой; админ тайван.
+const AMBIENT_MIX = {
+  home: ['heart', 'gift', 'flower', 'heart', 'spark', 'gift'],
+  profile: ['flower', 'heart', 'flower', 'spark'],
+  notifications: ['spark', 'heart', 'spark', 'gift'],
+  admin: ['spark', 'spark', 'heart'],
+};
+let ambientEls = [];
+function ensureAmbient() {
+  if (ambientEls.length) return;
+  const wide = matchMedia('(min-width: 1000px)').matches;
+  const n = wide ? 16 : 8;
+  const layer = h('div', { class: 'ambient', 'aria-hidden': 'true' });
+  for (let i = 0; i < n; i++) {
+    const r = (a, b) => a + Math.random() * (b - a);
+    const dur = r(28, 52);
+    const item = h('span', {
+      class: 'amb',
+      style: {
+        '--x': `${((i + r(0.1, 0.9)) / n) * 100}%`,
+        '--y': `${r(5, 90)}%`,
+        '--s': `${Math.round(r(wide ? 16 : 14, wide ? 34 : 26))}px`,
+        '--d': `${dur.toFixed(1)}s`,
+        '--delay': `${(-r(0, dur)).toFixed(1)}s`,
+        '--sw': `${Math.round(r(12, 34))}px`,
+        '--r': `${Math.round(r(-30, 30))}deg`,
+        '--o': r(0.28, 0.55).toFixed(2),
+      },
+    }, motif('heart'));
+    ambientEls.push(item);
+    layer.appendChild(item);
+  }
+  document.body.appendChild(layer);
+}
+function updateAmbient(tab) {
+  ensureAmbient();
+  const mix = AMBIENT_MIX[tab] || AMBIENT_MIX.home;
+  const fewer = tab === 'admin';
+  ambientEls.forEach((el, i) => {
+    setMotif(el.firstChild, mix[i % mix.length]);
+    el.classList.toggle('amb-off', fewer && i % 3 !== 0);
+  });
+}
+
 function setEnvironment(tab) {
   if (document.body.dataset.tab === tab) return;
   document.body.dataset.tab = tab;
+  updateAmbient(tab);
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', THEME_COLORS[tab] || THEME_COLORS.home);
 }
@@ -740,7 +786,9 @@ function isInAppBrowser() {
 
 function landingContent() {
   return [
-    keep('landing:art', () => h('div', { class: 'hero-art-wrap' }, svg(HERO_ART, 'hero-figure'))),
+    keep('landing:art', () => h('div', { class: 'hero-art-wrap' }, svg(HERO_ART, 'hero-figure'),
+      h('div', { class: 'hero-motifs', 'aria-hidden': 'true' },
+        [['heart', 'hm1'], ['flower', 'hm2'], ['gift', 'hm3'], ['spark', 'hm4'], ['heart', 'hm5']].map(([k, c]) => motif(k, 'hero-motif ' + c))))),
     keep('landing:text', () =>
       h('section', { class: 'hero' },
         h('p', { class: 'hero-eyebrow' }, 'ARXI.VERSE-25'),
@@ -878,8 +926,8 @@ function titleBlock(title, p, { golden = false, note = null, extra = null, photo
   return h('article', { class: 'tblock' + (golden ? ' golden' : '') + (variant ? ' v-' + variant : '') },
     h('header', { class: 'tb-head' },
       h('div', { class: 'tb-who' }, avatar(p, pic), h('h2', { class: 'tb-title' }, title)),
-      golden ? h('span', { class: 'tb-badge' }, '✦ Алтан монита')
-        : variant ? h('span', { class: 'tb-tag' }, VARIANT_TAG[variant]) : null),
+      golden ? h('span', { class: 'tb-badge' }, motif('heart', 'motif-inline'), 'Алтан монита', motif('heart', 'motif-inline'))
+        : variant ? h('span', { class: 'tb-tag' }, motif(variant === 'target' ? 'gift' : 'heart', 'motif-inline'), VARIANT_TAG[variant]) : null),
     note ? h('p', { class: 'tb-note' }, note) : null,
     h('div', { class: 'tb-grid' },
       cell('Овог', p.lastName),
@@ -955,11 +1003,14 @@ function wrapped(key, card, label, golden = false) {
     const el = h('div', { class: 'giftwrap' + (golden ? ' gold' : '') });
     const slot = h('div', { class: 'gift-slot', 'aria-hidden': 'true' });
     const cover = h('button', { class: 'gift-cover', type: 'button' },
+      h('span', { class: 'wrap-motifs', 'aria-hidden': 'true' },
+        (golden ? ['heart', 'heart', 'spark', 'heart'] : ['heart', 'flower', 'spark', 'gift']).map((k, i) => motif(k, 'wrap-motif wm' + (i + 1)))),
       svg(GIFT_MINI, 'gift-cube'),
       h('span', { class: 'gift-label' }, label),
       h('span', { class: 'gift-hint' }, 'Нээх'));
     cover.addEventListener('click', () => {
       el.classList.add('opening');
+      burst(cover, golden ? { kinds: ['heart', 'heart', 'spark'], count: 24, spread: 150 } : { count: 18, spread: 130 });
       setTimeout(() => {
         try {
           localStorage.setItem(openedKey(key), '1');
@@ -1029,6 +1080,7 @@ function giftSection() {
     try {
       const { data, ratio } = await fileToGiftPhoto(f);
       await fb.saveGift(S.user.uid, data, ratio, caption.value.trim());
+      burst(pick, { kinds: ['gift', 'flower', 'spark'], count: 12, spread: 90 });
       toast('Бэлгийн зураг нэмэгдлээ');
     } catch (e) {
       console.error(e);
@@ -1041,7 +1093,7 @@ function giftSection() {
   });
 
   const el = h('section', { class: 'panel gifts-panel', 'aria-labelledby': 'gifts-h' },
-    h('h2', { class: 'h-section', id: 'gifts-h' }, 'Шилдэг бэлэг'), intro, winnerBox, mine, grid, empty, file);
+    h('h2', { class: 'h-section with-motif', id: 'gifts-h' }, motif('gift', 'motif-head'), 'Шилдэг бэлэг'), intro, winnerBox, mine, grid, empty, file);
 
   let last = '';
   el.sync = (force) => {
@@ -1067,7 +1119,7 @@ function giftSection() {
         g ? h('button', { class: 'gift-img-btn', type: 'button', onclick: () => openPhoto(g.data, 'Шилдэг бэлэг') },
           h('img', { src: g.data, alt: 'Шилдэг бэлэг', style: { aspectRatio: `1 / ${g.ratio || 1}` } })) : null,
         h('div', { class: 'gift-winner-text' },
-          h('span', { class: 'tb-badge' }, '✦ Шилдэг бэлэг'),
+          h('span', { class: 'tb-badge' }, motif('gift', 'motif-inline'), 'Шилдэг бэлэг'),
           g && g.caption ? h('p', { class: 'gift-caption' }, g.caption) : null,
           h('dl', { class: 'day-facts' },
             h('div', { class: 'fact' }, h('dt', null, 'Бэлэг өгсөн'), h('dd', null, w.giver || '—')),
@@ -1118,8 +1170,12 @@ function giftSection() {
           onclick: async (e) => {
             e.currentTarget.disabled = true;
             try {
+              const btnEl = e.currentTarget;
               if (isMyVote) await fb.unvote(me);
-              else await fb.vote(me, g.id);
+              else {
+                burst(btnEl, { kinds: ['heart', 'spark'], count: 10, spread: 70 });
+                await fb.vote(me, g.id);
+              }
             } catch (er) {
               toast(errText(er, 'Санал өгч чадсангүй'), 'error');
             }
@@ -1223,7 +1279,7 @@ function daySection(c) {
     h('div', { class: 'day-body' },
       dateTile(day.date),
       h('div', { class: 'day-text' },
-        h('p', { class: 'day-label' }, label, c.finalDay ? h('span', { class: 'final-pill' }, 'Сүүлийн өдөр') : null),
+        h('p', { class: 'day-label' }, motif('flower', 'motif-inline'), label, c.finalDay ? h('span', { class: 'final-pill' }, 'Сүүлийн өдөр') : null),
         theme ? h('p', { class: 'day-theme' }, theme) : null,
         full ? h('p', { class: 'day-date' }, h('span', { class: 'sr-only' }, 'Огноо: '), full) : null),
       day.desc || dayFacts(day) ? h('div', { class: 'day-more' }, day.desc ? h('p', { class: 'day-desc' }, day.desc) : null, dayFacts(day)) : null,
@@ -1264,6 +1320,7 @@ function letterPanel(kind) {
         await fb.sendLetter({ t: S.user.uid, dir: 'up', k: lastDown ? lastDown.k : '', text });
       }
       ta.value = '';
+      burst(send, { kinds: ['heart', 'spark'], count: 10, spread: 80 });
       toast('Илгээлээ');
     } catch (er) {
       console.error(er);
@@ -1275,7 +1332,7 @@ function letterPanel(kind) {
 
   const el = h('section', { class: 'panel letters-panel' },
     h('div', null,
-      h('h2', { class: 'h-section' }, out ? 'Монитадаа нэргүй захидал' : 'Танд ирсэн нэргүй захидал'),
+      h('h2', { class: 'h-section with-motif' }, motif('heart', 'motif-head'), out ? 'Монитадаа нэргүй захидал' : 'Танд ирсэн нэргүй захидал'),
       h('p', { class: 'muted small' }, out ? 'Таны нэр харагдахгүй.' : 'Хэн бичсэнийг сүүлийн өдөр мэдэх болно.')),
     list, empty, form);
 
@@ -1494,7 +1551,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=20'));
+    ({ AVATARS: list } = await import('./avatars.js?v=21'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;
@@ -1654,6 +1711,7 @@ function profileForm(p) {
         }
       }
       await fb.saveProfile(S.user, data, p);
+      if (!p) burst(submit, { count: 20, spread: 140 });
       toast(p ? 'Хадгаллаа' : 'Бүртгэл амжилттай');
       S.editing = false;
       forget('form:profile');

@@ -4,8 +4,8 @@ import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, collection, query, where, onSnapshot, getDoc, getDocs, getDocFromCache, setDoc,
   deleteDoc, writeBatch, serverTimestamp, terminate, clearIndexedDbPersistence,
-} from '../vendor/firebase.js?v=20';
-import { firebaseConfig } from './config.js?v=20';
+} from '../vendor/firebase.js?v=21';
+import { firebaseConfig } from './config.js?v=21';
 
 
 export const app = initializeApp(firebaseConfig);

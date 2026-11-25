@@ -420,9 +420,9 @@ h1, h2, h3 { margin: 0; font-weight: 400; }
 .avatar-opt:disabled { opacity: .6; cursor: progress; }
 .photo-control { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
 .photo-side { display: flex; flex-direction: column; gap: 8px; }
-.tb-badge { font: 400 13px var(--display); letter-spacing: .04em; padding: 6px 12px; border-radius: 999px; color: var(--bg); background: var(--gold-grad); white-space: nowrap; }
+.tb-badge { display: inline-flex; align-items: center; gap: 6px; font: 400 13px var(--display); letter-spacing: .04em; padding: 6px 12px; border-radius: 999px; color: var(--bg); background: var(--gold-grad); white-space: nowrap; }
 /* "Таны монита" ба "Таныг сонгосон хүн" картыг ялгах */
-.tb-tag { font: 500 13px var(--display); padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
+.tb-tag { display: inline-flex; align-items: center; gap: 6px; font: 500 13px var(--display); padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
 .tblock.v-target { border: 2px solid transparent; background: linear-gradient(#2F1D61, #2F1D61) padding-box, linear-gradient(120deg, #7CF6FF, #2E8BFF 55%, #8F6BFF) border-box; }
 .tblock.v-target .tb-head { background: rgba(124, 246, 255, .09); }
 .tblock.v-target .tb-tag { background: rgba(124, 246, 255, .16); color: #BFFBFF; }
@@ -695,7 +695,7 @@ select.input option { background: var(--bg-2); color: var(--text); }
 /* ---------- Том дэлгэц (утасны загвар өөрчлөгдөхгүй) ---------- */
 .hero-sub { display: none; }
 .landing .hero { margin-top: -14px; }
-.hero-art-wrap { display: flex; justify-content: center; }
+.hero-art-wrap { display: flex; justify-content: center; position: relative; }
 .home-pre, .profile-grid { display: flex; flex-direction: column; gap: 24px; }
 .profile-col { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
 .bg-deco { display: none; }
@@ -891,3 +891,66 @@ ul.change-list li::before { content: ''; position: absolute; left: 0; top: .6em;
 .error-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--muted); }
 .error-meta b { color: var(--text); font-weight: 500; }
 .error-msg { font-size: 14px; overflow-wrap: anywhere; }
+
+/* ---------- Зүрх, цэцэг, бэлэг, од ---------- */
+.motif { display: inline-block; flex: none; overflow: visible; }
+.motif-inline { width: 1.15em; height: 1.15em; vertical-align: -0.2em; }
+.tb-badge .motif-inline { filter: drop-shadow(0 1px 0 rgba(255, 255, 255, .4)); }
+.h-section.with-motif { display: flex; align-items: center; gap: 10px; }
+.motif-head { width: 26px; height: 26px; filter: drop-shadow(0 4px 10px rgba(255, 126, 196, .35)); }
+
+/* Хөвөх дүрсүүд: доороос дээш аажмаар хөвнө */
+.ambient { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.amb { position: absolute; left: var(--x); bottom: -60px; width: var(--s); height: var(--s); opacity: 0;
+  animation: amb-rise var(--d) linear var(--delay) infinite; will-change: transform, opacity; }
+.amb .motif { width: 100%; height: 100%; display: block; animation: amb-sway calc(var(--d) / 5) ease-in-out var(--delay) infinite alternate; }
+.amb-off { display: none; }
+@keyframes amb-rise {
+  0% { transform: translateY(0) rotate(var(--r)); opacity: 0; }
+  8% { opacity: var(--o); }
+  85% { opacity: var(--o); }
+  100% { transform: translateY(calc(-100vh - 140px)) rotate(calc(var(--r) * -1)); opacity: 0; }
+}
+@keyframes amb-sway { from { transform: translateX(calc(var(--sw) * -1)); } to { transform: translateX(var(--sw)); } }
+
+/* Баярын цацрал */
+.burst { position: fixed; z-index: 80; width: 0; height: 0; pointer-events: none; }
+.burst-bit { position: absolute; left: calc(var(--s) / -2); top: calc(var(--s) / -2); width: var(--s); height: var(--s); opacity: 0;
+  animation: burst-pop 1.15s cubic-bezier(.2, .7, .3, 1) var(--delay) forwards; }
+.burst-bit .motif { width: 100%; height: 100%; display: block; }
+@keyframes burst-pop {
+  0% { transform: translate(0, 0) scale(.3) rotate(0deg); opacity: 0; }
+  14% { opacity: 1; }
+  65% { opacity: 1; }
+  100% { transform: translate(var(--dx), calc(var(--dy) + 46px)) scale(1) rotate(var(--r)); opacity: 0; }
+}
+
+/* Нүүр хуудасны зургийн эргэн тойронд */
+.hero-motifs { position: absolute; inset: 0; pointer-events: none; }
+.hero-motif { position: absolute; animation: hero-bob 6s ease-in-out infinite alternate; filter: drop-shadow(0 8px 18px rgba(30, 10, 70, .35)); }
+.hm1 { width: 34px; height: 34px; left: 8%; top: 14%; animation-delay: -1s; }
+.hm2 { width: 30px; height: 30px; right: 6%; top: 8%; animation-delay: -3s; }
+.hm3 { width: 36px; height: 36px; right: 2%; bottom: 18%; animation-delay: -2s; }
+.hm4 { width: 22px; height: 22px; left: 18%; bottom: 10%; animation-delay: -4s; }
+.hm5 { width: 20px; height: 20px; left: 46%; top: 0; animation-delay: -5s; }
+@keyframes hero-bob { from { transform: translateY(0) rotate(-6deg); } to { transform: translateY(-12px) rotate(6deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .amb { animation: none; bottom: auto; top: var(--y); opacity: var(--o); }
+  .amb .motif, .hero-motif { animation: none; }
+}
+
+/* Хөвөх дүрсүүд картын ард бүдэг гэрэл мэт харагдана (картын агуулгатай холилдохгүй). */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .panel, .tblock, .howto-step, .countdown, .giftwrap { -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+}
+
+/* Бэлгийн хайрцаг дээрх жижиг дүрсүүд */
+.wrap-motifs { position: absolute; inset: 0; pointer-events: none; }
+.wrap-motif { position: absolute; animation: hero-bob 5s ease-in-out infinite alternate; filter: drop-shadow(0 6px 14px rgba(20, 6, 50, .4)); }
+.wm1 { width: 30px; height: 30px; left: 14%; top: 18%; animation-delay: -1s; }
+.wm2 { width: 26px; height: 26px; right: 14%; top: 24%; animation-delay: -2.5s; }
+.wm3 { width: 18px; height: 18px; left: 24%; bottom: 20%; animation-delay: -3.5s; }
+.wm4 { width: 28px; height: 28px; right: 18%; bottom: 16%; animation-delay: -.5s; }
+.giftwrap.opening .wrap-motifs { opacity: 0; transition: opacity .3s; }
+@media (prefers-reduced-motion: reduce) { .wrap-motif { animation: none; } }

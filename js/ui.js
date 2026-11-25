@@ -6,7 +6,13 @@ export function h(tag, props, ...children) {
     for (const [k, v] of Object.entries(props)) {
       if (v === null || v === undefined || v === false) continue;
       if (k === 'class') el.className = v;
-      else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+      else if (k === 'style' && typeof v === 'object') {
+        // CSS хувьсагч (--x) нь setProperty-гаар л тохирно.
+        for (const [sk, sv] of Object.entries(v)) {
+          if (sk.startsWith('--')) el.style.setProperty(sk, sv);
+          else el.style[sk] = sv;
+        }
+      }
       else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);
       else if (k === 'html') el.innerHTML = v;
       else if (k === 'value') el.value = v;
@@ -281,4 +287,76 @@ export function debounce(fn, ms) {
     clearTimeout(t);
     t = setTimeout(() => fn(...a), ms);
   };
+}
+
+
+// ---------- Зүрх, цэцэг, бэлэг, од ----------
+// Постерын солонгорсон өнгөөр зурсан жижиг дүрсүүд. Нэг удаа хуудсанд оруулж, <use>-ээр олон газар ашиглана.
+const PETALS = [0, 72, 144, 216, 288].map((a) => `<ellipse cx="12" cy="6.4" rx="3.5" ry="4.7" transform="rotate(${a} 12 12)"/>`).join('');
+const MOTIF_SPRITE = `<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden">
+<defs>
+<linearGradient id="mHeart" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFC2E6"/><stop offset=".55" stop-color="#FF7EC4"/><stop offset="1" stop-color="#B48BFF"/></linearGradient>
+<linearGradient id="mPetal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE6F3"/><stop offset="1" stop-color="#FF9EDB"/></linearGradient>
+<radialGradient id="mCore"><stop offset="0" stop-color="#FFF6D2"/><stop offset="1" stop-color="#FFC46B"/></radialGradient>
+<linearGradient id="mBox" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B8FBFF"/><stop offset=".5" stop-color="#8FC2FF"/><stop offset="1" stop-color="#9C7CFF"/></linearGradient>
+<linearGradient id="mRibbon" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFEAB0"/><stop offset="1" stop-color="#FFB46B"/></linearGradient>
+<linearGradient id="mSpark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#A6FAFF"/></linearGradient>
+</defs>
+<symbol id="m-heart" viewBox="0 0 24 24"><path fill="url(#mHeart)" d="M12 21.2s-7.6-4.7-9.7-9.3C.8 8.4 2.8 4.3 6.8 4.3c2.2 0 3.8 1.2 5.2 3 1.4-1.8 3-3 5.2-3 4 0 6 4.1 4.5 7.6-2.1 4.6-9.7 9.3-9.7 9.3z"/><path fill="#fff" opacity=".5" d="M6.4 6.9c-1.6.3-2.5 1.9-2.2 3.5.7-1.4 1.7-2.3 3-2.6z"/></symbol>
+<symbol id="m-flower" viewBox="0 0 24 24"><g fill="url(#mPetal)">${PETALS}</g><circle cx="12" cy="12" r="3.2" fill="url(#mCore)"/></symbol>
+<symbol id="m-gift" viewBox="0 0 24 24"><rect x="3.6" y="10" width="16.8" height="10.6" rx="2" fill="url(#mBox)"/><rect x="2.6" y="7.2" width="18.8" height="4" rx="1.4" fill="url(#mBox)"/><rect x="10.6" y="7.2" width="2.8" height="13.4" fill="url(#mRibbon)"/><path fill="url(#mRibbon)" d="M12 7.2c-1.7-3.5-5.8-3.7-5.8-1.3 0 1.6 3.1 1.7 5.8 1.3zm0 0c1.7-3.5 5.8-3.7 5.8-1.3 0 1.6-3.1 1.7-5.8 1.3z"/></symbol>
+<symbol id="m-spark" viewBox="0 0 24 24"><path fill="url(#mSpark)" d="M12 2.5c.6 4.4 2.4 7 7.6 9.5-5.2 2.5-7 5.1-7.6 9.5-.6-4.4-2.4-7-7.6-9.5 5.2-2.5 7-5.1 7.6-9.5z"/></symbol>
+</svg>`;
+let spriteReady = false;
+function ensureSprite() {
+  if (spriteReady) return;
+  spriteReady = true;
+  const t = document.createElement('template');
+  t.innerHTML = MOTIF_SPRITE.trim();
+  document.body.prepend(t.content.firstChild);
+}
+const SVG_NS = 'http://www.w3.org/2000/svg';
+export function motif(name, cls = '') {
+  ensureSprite();
+  const s = document.createElementNS(SVG_NS, 'svg');
+  s.setAttribute('class', ('motif ' + cls).trim());
+  s.setAttribute('viewBox', '0 0 24 24');
+  s.setAttribute('aria-hidden', 'true');
+  s.setAttribute('focusable', 'false');
+  const u = document.createElementNS(SVG_NS, 'use');
+  u.setAttribute('href', '#m-' + name);
+  s.appendChild(u);
+  return s;
+}
+export function setMotif(svgEl, name) {
+  const u = svgEl.querySelector('use');
+  if (u) u.setAttribute('href', '#m-' + name);
+}
+
+// Баярын агшинд (бэлэг нээх, захидал илгээх, санал өгөх) дүрсүүд цацарна.
+const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+export function burst(anchor, { kinds = ['heart', 'flower', 'gift', 'spark'], count = 16, spread = 110 } = {}) {
+  if (REDUCED_MOTION || !anchor) return;
+  const r = anchor.getBoundingClientRect();
+  if (!r.width && !r.height) return;
+  const layer = document.createElement('div');
+  layer.className = 'burst';
+  layer.setAttribute('aria-hidden', 'true');
+  layer.style.left = `${r.left + r.width / 2}px`;
+  layer.style.top = `${r.top + r.height / 2}px`;
+  for (let i = 0; i < count; i++) {
+    const a = (i / count) * Math.PI * 2 + Math.random() * 0.5;
+    const d = spread * (0.45 + Math.random() * 0.75);
+    const bit = document.createElement('span');
+    bit.className = 'burst-bit';
+    bit.style.setProperty('--dx', `${Math.cos(a) * d}px`);
+    bit.style.setProperty('--dy', `${Math.sin(a) * d - 30}px`);
+    bit.style.setProperty('--r', `${Math.round(Math.random() * 120 - 60)}deg`);
+    bit.style.setProperty('--s', `${Math.round(14 + Math.random() * 14)}px`);
+    bit.style.setProperty('--delay', `${Math.round(Math.random() * 90)}ms`);
+    bit.appendChild(motif(kinds[i % kinds.length]));
+    layer.appendChild(bit);
+  }
+  document.body.appendChild(layer);
+  setTimeout(() => layer.remove(), 1500);
 }
