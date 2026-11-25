@@ -954,3 +954,30 @@ ul.change-list li::before { content: ''; position: absolute; left: 0; top: .6em;
 .wm4 { width: 28px; height: 28px; right: 18%; bottom: 16%; animation-delay: -.5s; }
 .giftwrap.opening .wrap-motifs { opacity: 0; transition: opacity .3s; }
 @media (prefers-reduced-motion: reduce) { .wrap-motif { animation: none; } }
+
+/* ---------- Шинэ жилийн уур амьсгал ---------- */
+/* Өнгөт гэрлийн утас */
+.garland { position: fixed; left: 0; right: 0; top: calc(env(safe-area-inset-top, 0px) + 60px); height: 26px; z-index: 19; pointer-events: none; overflow: hidden;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 20'%3E%3Cpath d='M0 2 Q36 18 72 2' fill='none' stroke='rgba(255,255,255,.32)' stroke-width='1.2'/%3E%3C/svg%3E") repeat-x 0 0 / 72px 20px; }
+.garland.on-top { top: env(safe-area-inset-top, 0px); }
+.bulb { position: absolute; top: 8px; width: 8px; height: 11px; margin-left: -4px; border-radius: 50% 50% 50% 50% / 42% 42% 58% 58%;
+  background: var(--c); box-shadow: 0 0 6px 1px var(--c); animation: twinkle 2.4s ease-in-out var(--tw) infinite alternate; }
+.bulb::before { content: ''; position: absolute; left: 1.5px; top: -3px; width: 5px; height: 3.5px; border-radius: 1px; background: #E8D9B0; }
+@keyframes twinkle { from { opacity: .45; box-shadow: 0 0 2px 0 var(--c); } to { opacity: 1; box-shadow: 0 0 10px 2px var(--c); } }
+
+/* Зөөлөн цас */
+.snowfall { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.flake { position: absolute; left: var(--x); top: -10px; width: var(--s); height: var(--s); border-radius: 50%; background: #fff; opacity: var(--o);
+  filter: blur(.4px); animation: snow-fall var(--d) linear var(--delay) infinite; will-change: transform; }
+@keyframes snow-fall {
+  0% { transform: translate(0, 0); }
+  50% { transform: translate(var(--sw), 55vh); }
+  100% { transform: translate(calc(var(--sw) * -0.4), calc(100vh + 20px)); }
+}
+.hm6 { width: 38px; height: 38px; left: 2%; bottom: 26%; animation-delay: -2.2s; }
+.hm7 { width: 24px; height: 24px; right: 22%; bottom: 4%; animation-delay: -4.4s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bulb { animation: none; opacity: .9; }
+  .flake { animation: none; top: var(--y); }
+}

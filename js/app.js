@@ -1,10 +1,10 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, motif, setMotif, burst, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay, parseDay, fmtDay, fmtMoney,
   toMillis, errText,
-} from './ui.js?v=21';
-import * as fb from './fb.js?v=21';
-import { adminContent, startAdminSubs } from './admin.js?v=21';
-import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=21';
+} from './ui.js?v=22';
+import * as fb from './fb.js?v=22';
+import { adminContent, startAdminSubs } from './admin.js?v=22';
+import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=22';
 
 // ---------- Төлөв ----------
 const S = {
@@ -585,14 +585,55 @@ const THEME_COLORS = { home: '#2A1450', profile: '#1D1A52', notifications: '#2F1
 // ---------- Хөвөх дүрсүүд (зүрх, цэцэг, бэлэг, од) ----------
 // Хуудас бүрт өөр холимог: нүүр бэлэг, зүрхтэй; профайл цэцэгтэй; мэдэгдэл одтой; админ тайван.
 const AMBIENT_MIX = {
-  home: ['heart', 'gift', 'flower', 'heart', 'spark', 'gift'],
-  profile: ['flower', 'heart', 'flower', 'spark'],
-  notifications: ['spark', 'heart', 'spark', 'gift'],
-  admin: ['spark', 'spark', 'heart'],
+  home: ['heart', 'gift', 'snow', 'bauble', 'heart', 'tree', 'flower', 'spark'],
+  profile: ['flower', 'snow', 'heart', 'bauble', 'flower', 'spark'],
+  notifications: ['spark', 'snow', 'heart', 'gift', 'bauble'],
+  admin: ['snow', 'spark', 'heart'],
 };
+
+// ---------- Шинэ жилийн гэрэл ба цас ----------
+// Дээд цэсний доор унжсан өнгөт гэрлийн утас (хуудас солигдоход дахин зурагдахгүй).
+const GARLAND_COLORS = ['#A6FAFF', '#FF9EDB', '#FFD27A', '#C7A2FF', '#8FF5D0'];
+function garland() {
+  return keep('garland', () => {
+    const el = h('div', { class: 'garland', 'aria-hidden': 'true' });
+    const fill = () => {
+      const n = Math.ceil(window.innerWidth / 72) + 1;
+      el.replaceChildren(...Array.from({ length: n }, (_, i) =>
+        h('span', { class: 'bulb', style: { left: `${i * 72 + 36}px`, '--c': GARLAND_COLORS[i % GARLAND_COLORS.length], '--tw': `${(i * 0.37) % 2.4}s` } })));
+    };
+    fill();
+    let t = 0;
+    window.addEventListener('resize', () => {
+      clearTimeout(t);
+      t = setTimeout(fill, 200);
+    });
+    return el;
+  });
+}
+// Зөөлөн цас: жижиг цагаан ширхгүүд аажим унана.
+function ensureSnow() {
+  if (document.querySelector('.snowfall')) return;
+  const wide = matchMedia('(min-width: 1000px)').matches;
+  const n = wide ? 26 : 12;
+  const r = (a, b) => a + Math.random() * (b - a);
+  const layer = h('div', { class: 'snowfall', 'aria-hidden': 'true' });
+  for (let i = 0; i < n; i++) {
+    const dur = r(14, 28);
+    layer.appendChild(h('span', {
+      class: 'flake',
+      style: {
+        '--x': `${r(0, 100).toFixed(1)}%`, '--y': `${r(0, 100).toFixed(1)}%`, '--s': `${r(2, 5).toFixed(1)}px`,
+        '--d': `${dur.toFixed(1)}s`, '--delay': `${(-r(0, dur)).toFixed(1)}s`, '--sw': `${Math.round(r(10, 40))}px`, '--o': r(0.35, 0.8).toFixed(2),
+      },
+    }));
+  }
+  document.body.appendChild(layer);
+}
 let ambientEls = [];
 function ensureAmbient() {
   if (ambientEls.length) return;
+  ensureSnow();
   const wide = matchMedia('(min-width: 1000px)').matches;
   const n = wide ? 16 : 8;
   const layer = h('div', { class: 'ambient', 'aria-hidden': 'true' });
@@ -641,7 +682,9 @@ function draw() {
   if (!S.user) {
     screens.landing = screens.landing || h('main', { class: 'landing', id: 'main' });
     patch(screens.landing, landingContent());
-    return patch(root, [screens.landing]);
+    const lights = garland();
+    lights.classList.add('on-top');
+    return patch(root, [lights, screens.landing]);
   }
   if (S.loadError && S.profile === undefined) return patch(root, [errorView(S.loadError)]);
   if (S.profile === undefined || S.isAdmin === undefined || S.config === undefined) return patch(root, [loadingView()]);
@@ -655,7 +698,9 @@ function draw() {
   screens.lastTab = S.tab;
   patch(screens.main, [tabContent(), siteFooter()]);
   const deco = keep('bg:deco', () => svg(DECO_ART, 'bg-deco'));
-  patch(root, [topbar(tabs), screens.main, tabbar(tabs), deco]);
+  const lights = garland();
+  lights.classList.remove('on-top');
+  patch(root, [topbar(tabs), lights, screens.main, tabbar(tabs), deco]);
   if (S.tab === 'home') markLettersSeen();
 }
 
@@ -788,7 +833,7 @@ function landingContent() {
   return [
     keep('landing:art', () => h('div', { class: 'hero-art-wrap' }, svg(HERO_ART, 'hero-figure'),
       h('div', { class: 'hero-motifs', 'aria-hidden': 'true' },
-        [['heart', 'hm1'], ['flower', 'hm2'], ['gift', 'hm3'], ['spark', 'hm4'], ['heart', 'hm5']].map(([k, c]) => motif(k, 'hero-motif ' + c))))),
+        [['heart', 'hm1'], ['snow', 'hm2'], ['gift', 'hm3'], ['spark', 'hm4'], ['bauble', 'hm5'], ['tree', 'hm6'], ['flower', 'hm7']].map(([k, c]) => motif(k, 'hero-motif ' + c))))),
     keep('landing:text', () =>
       h('section', { class: 'hero' },
         h('p', { class: 'hero-eyebrow' }, 'ARXI.VERSE-25'),
@@ -1004,7 +1049,7 @@ function wrapped(key, card, label, golden = false) {
     const slot = h('div', { class: 'gift-slot', 'aria-hidden': 'true' });
     const cover = h('button', { class: 'gift-cover', type: 'button' },
       h('span', { class: 'wrap-motifs', 'aria-hidden': 'true' },
-        (golden ? ['heart', 'heart', 'spark', 'heart'] : ['heart', 'flower', 'spark', 'gift']).map((k, i) => motif(k, 'wrap-motif wm' + (i + 1)))),
+        (golden ? ['heart', 'heart', 'snow', 'heart'] : ['heart', 'snow', 'bauble', 'gift']).map((k, i) => motif(k, 'wrap-motif wm' + (i + 1)))),
       svg(GIFT_MINI, 'gift-cube'),
       h('span', { class: 'gift-label' }, label),
       h('span', { class: 'gift-hint' }, 'Нээх'));
@@ -1551,7 +1596,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=21'));
+    ({ AVATARS: list } = await import('./avatars.js?v=22'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;

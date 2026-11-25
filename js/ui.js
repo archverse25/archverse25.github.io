@@ -292,6 +292,9 @@ export function debounce(fn, ms) {
 
 // ---------- Зүрх, цэцэг, бэлэг, од ----------
 // Постерын солонгорсон өнгөөр зурсан жижиг дүрсүүд. Нэг удаа хуудсанд оруулж, <use>-ээр олон газар ашиглана.
+// Цасан ширхэг: 6 мөчир, мөчир бүр дээр V хэлбэрийн салаа (архитектурын шугаман хэв маяг).
+const SNOW_ARMS = [0, 60, 120, 180, 240, 300].map((a) =>
+  `<g transform="rotate(${a} 12 12)"><path d="M12 12V2.6"/><path d="M9.6 5.2 12 7.4l2.4-2.2"/></g>`).join('');
 const PETALS = [0, 72, 144, 216, 288].map((a) => `<ellipse cx="12" cy="6.4" rx="3.5" ry="4.7" transform="rotate(${a} 12 12)"/>`).join('');
 const MOTIF_SPRITE = `<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden">
 <defs>
@@ -301,10 +304,15 @@ const MOTIF_SPRITE = `<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
 <linearGradient id="mBox" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B8FBFF"/><stop offset=".5" stop-color="#8FC2FF"/><stop offset="1" stop-color="#9C7CFF"/></linearGradient>
 <linearGradient id="mRibbon" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFEAB0"/><stop offset="1" stop-color="#FFB46B"/></linearGradient>
 <linearGradient id="mSpark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#A6FAFF"/></linearGradient>
+<linearGradient id="mTree" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9DF7D8"/><stop offset=".6" stop-color="#3FC8A8"/><stop offset="1" stop-color="#2A8FA8"/></linearGradient>
+<radialGradient id="mBauble" cx=".35" cy=".35" r=".75"><stop offset="0" stop-color="#FFD9F0"/><stop offset=".5" stop-color="#FF7EC4"/><stop offset="1" stop-color="#8E5CFF"/></radialGradient>
 </defs>
 <symbol id="m-heart" viewBox="0 0 24 24"><path fill="url(#mHeart)" d="M12 21.2s-7.6-4.7-9.7-9.3C.8 8.4 2.8 4.3 6.8 4.3c2.2 0 3.8 1.2 5.2 3 1.4-1.8 3-3 5.2-3 4 0 6 4.1 4.5 7.6-2.1 4.6-9.7 9.3-9.7 9.3z"/><path fill="#fff" opacity=".5" d="M6.4 6.9c-1.6.3-2.5 1.9-2.2 3.5.7-1.4 1.7-2.3 3-2.6z"/></symbol>
 <symbol id="m-flower" viewBox="0 0 24 24"><g fill="url(#mPetal)">${PETALS}</g><circle cx="12" cy="12" r="3.2" fill="url(#mCore)"/></symbol>
 <symbol id="m-gift" viewBox="0 0 24 24"><rect x="3.6" y="10" width="16.8" height="10.6" rx="2" fill="url(#mBox)"/><rect x="2.6" y="7.2" width="18.8" height="4" rx="1.4" fill="url(#mBox)"/><rect x="10.6" y="7.2" width="2.8" height="13.4" fill="url(#mRibbon)"/><path fill="url(#mRibbon)" d="M12 7.2c-1.7-3.5-5.8-3.7-5.8-1.3 0 1.6 3.1 1.7 5.8 1.3zm0 0c1.7-3.5 5.8-3.7 5.8-1.3 0 1.6-3.1 1.7-5.8 1.3z"/></symbol>
+<symbol id="m-snow" viewBox="0 0 24 24"><g fill="none" stroke="url(#mSpark)" stroke-width="1.6" stroke-linecap="round">${SNOW_ARMS}</g><circle cx="12" cy="12" r="1.6" fill="#fff"/></symbol>
+<symbol id="m-tree" viewBox="0 0 24 24"><path fill="url(#mTree)" d="M12 3 6.8 9.6h2.6L5.2 15h3.1L4 20.6h16L15.7 15h3.1l-4.2-5.4h2.6z"/><rect x="10.7" y="20.4" width="2.6" height="2.4" rx=".6" fill="#C98A5B"/><path fill="url(#mRibbon)" d="M12 .9l.75 1.5 1.65.25-1.2 1.15.3 1.65L12 4.7l-1.5.75.3-1.65-1.2-1.15 1.65-.25z"/><circle cx="10" cy="12.6" r=".9" fill="#FFB3E1"/><circle cx="14.2" cy="16.9" r=".9" fill="#FFE7A6"/><circle cx="9.2" cy="18.3" r=".8" fill="#B8FBFF"/></symbol>
+<symbol id="m-bauble" viewBox="0 0 24 24"><path d="M12 1.8v3" stroke="#FFE7A6" stroke-width="1.2" fill="none"/><rect x="9.6" y="4.4" width="4.8" height="2.6" rx=".8" fill="url(#mRibbon)"/><circle cx="12" cy="14.3" r="7.6" fill="url(#mBauble)"/><path d="M5.6 13.2c2.1 1.4 10.7 1.4 12.8 0" stroke="#fff" stroke-opacity=".55" stroke-width="1.1" fill="none"/><ellipse cx="9.3" cy="11.2" rx="1.6" ry="1" fill="#fff" opacity=".6" transform="rotate(-30 9.3 11.2)"/></symbol>
 <symbol id="m-spark" viewBox="0 0 24 24"><path fill="url(#mSpark)" d="M12 2.5c.6 4.4 2.4 7 7.6 9.5-5.2 2.5-7 5.1-7.6 9.5-.6-4.4-2.4-7-7.6-9.5 5.2-2.5 7-5.1 7.6-9.5z"/></symbol>
 </svg>`;
 let spriteReady = false;
@@ -335,7 +343,7 @@ export function setMotif(svgEl, name) {
 
 // Баярын агшинд (бэлэг нээх, захидал илгээх, санал өгөх) дүрсүүд цацарна.
 const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-export function burst(anchor, { kinds = ['heart', 'flower', 'gift', 'spark'], count = 16, spread = 110 } = {}) {
+export function burst(anchor, { kinds = ['heart', 'snow', 'gift', 'flower', 'bauble', 'spark'], count = 16, spread = 110 } = {}) {
   if (REDUCED_MOTION || !anchor) return;
   const r = anchor.getBoundingClientRect();
   if (!r.width && !r.height) return;
