@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay, isoDay, parseDay } from './ui.js?v=27';
-import * as fb from './fb.js?v=27';
-import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=27';
-import { fileToPages } from './media.js?v=27';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay, isoDay, parseDay } from './ui.js?v=28';
+import * as fb from './fb.js?v=28';
+import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=28';
+import { fileToPages } from './media.js?v=28';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
@@ -280,7 +280,7 @@ async function exportExcel(ctx, btn) {
   if (!users.length) return toast('Оролцогч алга байна.');
   btn.disabled = true;
   try {
-    const XLSX = await import('../vendor/xlsx.js?v=27');
+    const XLSX = await import('../vendor/xlsx.js?v=28');
     const byId = byIdMap(S);
     const assign = S.admin.assign;
     const active = S.config.state === 'active';

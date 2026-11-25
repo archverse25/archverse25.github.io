@@ -380,6 +380,65 @@ const MOTIF_SPRITE = `<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
   <rect x="26" y="14" width="8" height="40" fill="#FFFFFF" fill-opacity=".9"/>
   <path fill="#FFFFFF" fill-opacity=".92" d="M30 14C25 3 13 2 13 9 13 14 22 15 30 14ZM30 14C35 3 47 2 47 9 47 14 38 15 30 14Z"/>
 </symbol>
+<linearGradient id="sDeer" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D2A07E"/><stop offset="1" stop-color="#8A5A44"/></linearGradient>
+<linearGradient id="sAntler" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF2C4"/><stop offset="1" stop-color="#E0B27A"/></linearGradient>
+<linearGradient id="sSleigh" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9EDB"/><stop offset=".55" stop-color="#B48BFF"/><stop offset="1" stop-color="#6F8BFF"/></linearGradient>
+<linearGradient id="sCoat" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF6F8F"/><stop offset="1" stop-color="#D62E5E"/></linearGradient>
+<symbol id="sleigh" viewBox="0 0 270 100">
+  <g fill="#FFFFFF"><path transform="translate(8 52) scale(.55)" d="M0 -6C.4 -2 1.6 -.6 6 0 1.6 .6 .4 2 0 6-.4 2-1.6 .6-6 0-1.6-.6-.4-2 0-6Z" fill-opacity=".5"/>
+    <path transform="translate(22 40) scale(.8)" d="M0 -6C.4 -2 1.6 -.6 6 0 1.6 .6 .4 2 0 6-.4 2-1.6 .6-6 0-1.6-.6-.4-2 0-6Z" fill-opacity=".75"/>
+    <path transform="translate(14 66) scale(.45)" d="M0 -6C.4 -2 1.6 -.6 6 0 1.6 .6 .4 2 0 6-.4 2-1.6 .6-6 0-1.6-.6-.4-2 0-6Z" fill-opacity=".4"/></g>
+  <path d="M120 60 L162 52 L222 46" stroke="url(#bGold)" stroke-width="1.8" fill="none"/>
+  <g transform="translate(150 30)">
+  <g stroke="url(#sAntler)" stroke-width="2.2" stroke-linecap="round" fill="none">
+    <path d="M44 14 41 3M41 8 36 4M42.5 6 46 1"/><path d="M48 14 50 3M49.5 8 54 4"/>
+  </g>
+  <g stroke="#7A5242" stroke-width="3.2" stroke-linecap="round" fill="none">
+    <path d="M30 34 40 46"/><path d="M34 34 46 42"/><path d="M12 34 2 44"/><path d="M16 35 8 47"/>
+  </g>
+  <ellipse cx="22" cy="28" rx="17" ry="9" fill="url(#sDeer)"/>
+  <ellipse cx="22" cy="31" rx="11" ry="4.5" fill="#F3DCC6" fill-opacity=".7"/>
+  <path d="M34 24 Q40 14 44 13 L48 16 Q42 22 38 30Z" fill="url(#sDeer)"/>
+  <ellipse cx="47" cy="15" rx="6.5" ry="4.6" fill="url(#sDeer)"/>
+  <circle cx="53" cy="16" r="2" fill="#FFD27A"/>
+  <circle cx="48" cy="13.4" r="1.1" fill="#3A2466"/>
+  <path d="M5 24 Q1 21 2 18" stroke="#B9876A" stroke-width="3" stroke-linecap="round" fill="none"/>
+</g>
+  <g transform="translate(208 22)">
+  <g stroke="url(#sAntler)" stroke-width="2.2" stroke-linecap="round" fill="none">
+    <path d="M44 14 41 3M41 8 36 4M42.5 6 46 1"/><path d="M48 14 50 3M49.5 8 54 4"/>
+  </g>
+  <g stroke="#7A5242" stroke-width="3.2" stroke-linecap="round" fill="none">
+    <path d="M30 34 40 46"/><path d="M34 34 46 42"/><path d="M12 34 2 44"/><path d="M16 35 8 47"/>
+  </g>
+  <ellipse cx="22" cy="28" rx="17" ry="9" fill="url(#sDeer)"/>
+  <ellipse cx="22" cy="31" rx="11" ry="4.5" fill="#F3DCC6" fill-opacity=".7"/>
+  <path d="M34 24 Q40 14 44 13 L48 16 Q42 22 38 30Z" fill="url(#sDeer)"/>
+  <ellipse cx="47" cy="15" rx="6.5" ry="4.6" fill="url(#sDeer)"/>
+  <circle cx="53" cy="16" r="2" fill="#FFD27A"/>
+  <circle cx="48" cy="13.4" r="1.1" fill="#3A2466"/>
+  <path d="M5 24 Q1 21 2 18" stroke="#B9876A" stroke-width="3" stroke-linecap="round" fill="none"/>
+</g>
+  <path d="M36 84 H124 Q138 84 138 74 Q138 68 132 68" stroke="url(#bGold)" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+  <path d="M50 80 V70M112 80 V70" stroke="url(#bGold)" stroke-width="2.4"/>
+  <ellipse cx="58" cy="42" rx="18" ry="16" fill="#E9C9A0"/>
+  <path d="M46 30 Q58 24 70 30" stroke="#C79F72" stroke-width="2" fill="none"/>
+  <rect x="44" y="18" width="13" height="12" rx="2" fill="url(#bBoxA)"/><rect x="49" y="18" width="3" height="12" fill="url(#bGold)"/>
+  <rect x="58" y="14" width="12" height="14" rx="2" fill="url(#bBoxB)"/><rect x="62.5" y="14" width="3" height="14" fill="#fff" fill-opacity=".9"/>
+  <ellipse cx="92" cy="46" rx="15" ry="14" fill="url(#sCoat)"/>
+  <rect x="78" y="48" width="28" height="5" rx="2.5" fill="#FFFFFF"/>
+  <circle cx="98" cy="26" r="8" fill="#FFD9B8"/>
+  <path d="M89 27 Q98 46 107 27 Q98 33 89 27Z" fill="#FFFFFF"/>
+  <path d="M89 22 Q96 6 110 14 L106 22Z" fill="url(#sCoat)"/>
+  <rect x="88" y="19.5" width="19" height="4.5" rx="2.2" fill="#FFFFFF"/>
+  <circle cx="111" cy="14" r="3.2" fill="#FFFFFF"/>
+  <circle cx="101" cy="25" r="1.1" fill="#3A2466"/><circle cx="96" cy="25" r="1.1" fill="#3A2466"/>
+  <path d="M104 40 L116 28" stroke="url(#sCoat)" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="117" cy="26.5" r="3.8" fill="#3FC8A8"/>
+  <path fill="url(#sSleigh)" d="M28 50 Q30 76 58 78 H118 Q132 76 134 58 L124 54 Q120 66 108 66 H62 Q46 64 44 48Z"/>
+  <path d="M30 56 Q36 72 58 74" stroke="#fff" stroke-opacity=".45" stroke-width="1.6" fill="none"/>
+  <circle cx="126" cy="56" r="3" fill="url(#bGold)"/>
+</symbol>
 <symbol id="m-spark" viewBox="0 0 24 24"><path fill="url(#mSpark)" d="M12 2.5c.6 4.4 2.4 7 7.6 9.5-5.2 2.5-7 5.1-7.6 9.5-.6-4.4-2.4-7-7.6-9.5 5.2-2.5 7-5.1 7.6-9.5z"/></symbol>
 </svg>`;
 let spriteReady = false;
@@ -448,7 +507,9 @@ export const WINTER_SCENE = `<svg class="scene-svg" viewBox="0 0 1200 240" prese
 <use href="#giftbox-a" x="150" y="174" width="48" height="45"/><use href="#giftbox-b" x="192" y="186" width="36" height="34"/>
 <use href="#big-tree" x="276" y="110" width="70" height="105"/>
 <use href="#big-tree" x="420" y="-6" width="148" height="222"/>
+<use href="#giftbox-b" x="384" y="186" width="36" height="33"/><use href="#giftbox-a" x="552" y="180" width="44" height="40"/><use href="#giftbox-b" x="590" y="194" width="28" height="26"/>
 <use href="#snowman" x="632" y="40" width="132" height="176"/>
+<g class="scene-sleigh"><use href="#sleigh" x="850" y="4" width="230" height="85"/></g>
 <use href="#giftbox-b" x="790" y="178" width="46" height="43"/><use href="#giftbox-a" x="832" y="188" width="36" height="34"/>
 <use href="#poinsettia" x="930" y="124" width="74" height="88"/>
 <use href="#big-tree" x="1060" y="96" width="80" height="120"/>

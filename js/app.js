@@ -1,10 +1,10 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, WINTER_SCENE, ensureMotifSprite, motif, setMotif, burst, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay, parseDay, fmtDay, fmtMoney,
   toMillis, errText,
-} from './ui.js?v=27';
-import * as fb from './fb.js?v=27';
-import { adminContent, startAdminSubs } from './admin.js?v=27';
-import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=27';
+} from './ui.js?v=28';
+import * as fb from './fb.js?v=28';
+import { adminContent, startAdminSubs } from './admin.js?v=28';
+import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=28';
 
 // ---------- Төлөв ----------
 const S = {
@@ -627,6 +627,52 @@ function ensureSideFigures() {
   document.body.appendChild(wrap);
 }
 
+// ---------- Санта Клаус чаргатайгаа нисэх ----------
+// Хааяа (35–70 секунд тутам) дэлгэцийн дээд хэсгээр нисэн өнгөрч, замдаа жижиг бэлэг унагаана.
+let sleighTimer = 0;
+function startSleighFlights() {
+  if (document.querySelector('.sleigh-fly') || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  ensureMotifSprite();
+  const NS = 'http://www.w3.org/2000/svg';
+  const s = document.createElementNS(NS, 'svg');
+  s.setAttribute('viewBox', '0 0 270 100');
+  s.setAttribute('aria-hidden', 'true');
+  s.setAttribute('focusable', 'false');
+  const u = document.createElementNS(NS, 'use');
+  u.setAttribute('href', '#sleigh');
+  s.appendChild(u);
+  const el = h('div', { class: 'sleigh-fly', 'aria-hidden': 'true' }, s);
+  document.body.appendChild(el);
+  let dropTimer = 0;
+  const dropGift = () => {
+    const r = el.getBoundingClientRect();
+    if (r.right < 0 || r.left > window.innerWidth) return;
+    const g = h('span', { class: 'gift-drop', style: { left: `${r.left + r.width * 0.22}px`, top: `${r.top + r.height * 0.4}px` } },
+      motif(Math.random() < 0.7 ? 'gift' : 'heart'));
+    document.body.appendChild(g);
+    setTimeout(() => g.remove(), 1700);
+  };
+  const fly = () => {
+    if (document.hidden) return schedule(8000);
+    el.style.setProperty('--top', `${Math.round(90 + Math.random() * Math.min(window.innerHeight * 0.18, 140))}px`);
+    el.classList.remove('flying');
+    void el.offsetWidth;
+    el.classList.add('flying');
+    clearInterval(dropTimer);
+    dropTimer = setInterval(dropGift, 1600);
+  };
+  el.addEventListener('animationend', () => {
+    el.classList.remove('flying');
+    clearInterval(dropTimer);
+    schedule(35000 + Math.random() * 35000);
+  });
+  function schedule(ms) {
+    clearTimeout(sleighTimer);
+    sleighTimer = setTimeout(fly, ms);
+  }
+  schedule(4000);
+}
+
 // ---------- Шинэ жилийн гэрэл ба цас ----------
 // Дээд цэсний доор унжсан өнгөт гэрлийн утас (хуудас солигдоход дахин зурагдахгүй).
 const GARLAND_COLORS = ['#A6FAFF', '#FF9EDB', '#FFD27A', '#C7A2FF', '#8FF5D0'];
@@ -671,6 +717,7 @@ function ensureAmbient() {
   if (ambientEls.length) return;
   ensureSnow();
   ensureSideFigures();
+  startSleighFlights();
   const wide = matchMedia('(min-width: 1000px)').matches;
   const n = wide ? 16 : 8;
   const layer = h('div', { class: 'ambient', 'aria-hidden': 'true' });
@@ -1596,7 +1643,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=27'));
+    ({ AVATARS: list } = await import('./avatars.js?v=28'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;
