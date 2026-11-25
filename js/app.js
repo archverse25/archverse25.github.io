@@ -1,10 +1,10 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, motif, setMotif, burst, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay, parseDay, fmtDay, fmtMoney,
   toMillis, errText,
-} from './ui.js?v=23';
-import * as fb from './fb.js?v=23';
-import { adminContent, startAdminSubs } from './admin.js?v=23';
-import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=23';
+} from './ui.js?v=24';
+import * as fb from './fb.js?v=24';
+import { adminContent, startAdminSubs } from './admin.js?v=24';
+import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=24';
 
 // ---------- Төлөв ----------
 const S = {
@@ -1251,7 +1251,7 @@ const HOW_TO = [
 function howToView(registered) {
   return keep('howto:' + (registered ? 'in' : 'out'), () =>
     h('section', { class: 'howto', 'aria-labelledby': 'howto-h-' + (registered ? 'in' : 'out') },
-      h('h2', { class: 'h-section', id: 'howto-h-' + (registered ? 'in' : 'out') }, 'Хэрхэн оролцох вэ'),
+      h('h2', { class: 'h-section with-motif', id: 'howto-h-' + (registered ? 'in' : 'out') }, motif('tree', 'motif-head'), 'Хэрхэн оролцох вэ'),
       h('ol', { class: 'howto-steps' }, HOW_TO.map(([t, d], i) =>
         h('li', { class: 'howto-step' + (registered && i === 0 ? ' done' : '') },
           h('span', { class: 'howto-num', 'aria-hidden': 'true' }, registered && i === 0 ? '✓' : String(i + 1)),
@@ -1281,7 +1281,7 @@ function countdownView() {
       const d = Math.floor(left / 86400000);
       const hh = Math.floor((left % 86400000) / 3600000);
       const mm = Math.floor((left % 3600000) / 60000);
-      label.textContent = t.label;
+      label.replaceChildren(motif('snow', 'motif-inline'), ' ' + t.label);
       const parts = (d > 0 ? [[d, 'өдөр']] : []).concat([[hh, 'цаг'], [mm, 'минут']]);
       units.replaceChildren(...parts.map(([n, u]) =>
         h('span', { class: 'cd-unit' }, h('span', { class: 'cd-num' }, String(n).padStart(u === 'өдөр' ? 1 : 2, '0')), h('span', { class: 'cd-word' }, u))));
@@ -1348,7 +1348,7 @@ function letterPanel(kind) {
     placeholder: out ? 'Монитадаа нэрээ нуугаад бичээрэй' : 'Таныг сонгосон хүнд хариу бичих',
     'aria-label': out ? 'Монитадаа захидал' : 'Хариу захидал',
   });
-  const send = h('button', { class: 'btn btn-primary btn-small', type: 'submit' }, 'Илгээх');
+  const send = h('button', { class: 'btn btn-primary btn-small', type: 'submit' }, 'Илгээх', motif('heart', 'motif-inline'));
   const form = h('form', { class: 'letter-form' }, ta, h('div', { class: 'actions' }, send));
   let last;
 
@@ -1596,7 +1596,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=23'));
+    ({ AVATARS: list } = await import('./avatars.js?v=24'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;
