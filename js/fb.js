@@ -4,8 +4,8 @@ import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, collection, query, where, onSnapshot, getDoc, getDocs, getDocFromCache, setDoc,
   deleteDoc, writeBatch, serverTimestamp, terminate, clearIndexedDbPersistence,
-} from '../vendor/firebase.js?v=25';
-import { firebaseConfig } from './config.js?v=25';
+} from '../vendor/firebase.js?v=26';
+import { firebaseConfig } from './config.js?v=26';
 
 
 export const app = initializeApp(firebaseConfig);
@@ -241,6 +241,7 @@ export async function saveProfile(user, data, existing) {
     firstName: data.firstName,
     phone: data.phone,
     wishes: data.wishes,
+    dislikes: data.dislikes || '',
     uid,
     email: user.email,
     updatedAt: serverTimestamp(),

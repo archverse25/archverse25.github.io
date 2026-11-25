@@ -20,7 +20,7 @@ service cloud.firestore {
     function choseMe(uid) { return exists(assignPath(uid)) && get(assignPath(uid)).data.target == me(); }
 
     function validProfile(d, uid) {
-      return d.keys().hasOnly(['uid', 'email', 'studentCode', 'gender', 'lastName', 'firstName', 'phone', 'wishes', 'createdAt', 'updatedAt', 'consentAt'])
+      return d.keys().hasOnly(['uid', 'email', 'studentCode', 'gender', 'lastName', 'firstName', 'phone', 'wishes', 'dislikes', 'createdAt', 'updatedAt', 'consentAt'])
         && d.keys().hasAll(['uid', 'email', 'studentCode', 'gender', 'lastName', 'firstName', 'phone', 'wishes'])
         && d.uid == uid
         && d.email == request.auth.token.email
@@ -29,7 +29,8 @@ service cloud.firestore {
         && d.lastName is string && d.lastName.size() > 0 && d.lastName.size() <= 60
         && d.firstName is string && d.firstName.size() > 0 && d.firstName.size() <= 60
         && d.phone is string && d.phone.matches('^[0-9]{8}$')
-        && d.wishes is string && d.wishes.size() <= 1000;
+        && d.wishes is string && d.wishes.size() <= 1000
+        && (!('dislikes' in d) || (d.dislikes is string && d.dislikes.size() <= 500));
     }
 
     // Тохиргоо: төлөв, өдрүүд, сэдэв

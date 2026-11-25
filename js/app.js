@@ -1,10 +1,10 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, motif, setMotif, burst, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay, parseDay, fmtDay, fmtMoney,
   toMillis, errText,
-} from './ui.js?v=25';
-import * as fb from './fb.js?v=25';
-import { adminContent, startAdminSubs } from './admin.js?v=25';
-import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=25';
+} from './ui.js?v=26';
+import * as fb from './fb.js?v=26';
+import { adminContent, startAdminSubs } from './admin.js?v=26';
+import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=26';
 
 // ---------- Төлөв ----------
 const S = {
@@ -146,12 +146,12 @@ function openPrivacy() {
   const ul = (items) => h('ul', null, items.map((t) => h('li', null, t)));
   openDialog(h('div', { class: 'privacy' },
     sec('Ямар мэдээлэл цуглуулдаг вэ',
-      ul(['Gmail хаяг (Google-ээр нэвтрэхэд)', 'Овог, нэр, оюутны код, хүйс, утасны дугаар', 'Hint (сонирхол, хүсэж буй бэлэг)', 'Профайл зураг (заавал биш)', 'Нэргүй захидал', 'Сүүлийн өдөр оруулсан бэлгийн зураг болон шилдэг бэлэгт өгсөн санал'])),
+      ul(['Gmail хаяг (Google-ээр нэвтрэхэд)', 'Овог, нэр, оюутны код, хүйс, утасны дугаар', 'Hint (сонирхол, хүсэж буй бэлэг), дургүй зүйл', 'Профайл зураг (заавал биш)', 'Нэргүй захидал', 'Сүүлийн өдөр оруулсан бэлгийн зураг болон шилдэг бэлэгт өгсөн санал'])),
     sec('Юунд ашигладаг вэ',
       h('p', null, 'Зөвхөн ARXI.VERSE-25 ангийн монитаг зохион байгуулахад: хэн хэнд бэлэг өгөхийг холбох, бэлэг өгөх хүнд таны мэдээллийг харуулах.')),
     sec('Хэн хардаг вэ',
       ul([
-        'Монита эхэлсний дараа танд бэлэг өгөх хүн таны нэр, утас, hint, зургийг харна.',
+        'Монита эхэлсний дараа танд бэлэг өгөх хүн таны нэр, утас, hint, дургүй зүйл, зургийг харна.',
         'Сүүлийн өдөр хэн хэнийг сонгосон нь илчлэгдэнэ.',
         'Сүүлийн өдөр оруулсан бэлгийн зургийг бүх оролцогч харна. Хэн хэнд санал өгснийг зөвхөн админ харна.',
         'Админ бүх оролцогчийн мэдээллийг харна.',
@@ -981,6 +981,7 @@ function titleBlock(title, p, { golden = false, note = null, extra = null, photo
       cell('Хүйс', genderLabel(p.gender)),
       cell('Утас', h('a', { href: 'tel:' + p.phone, class: 'tel' }, fmtPhone(p.phone)), 'wide'),
       cell('Hint', p.wishes || '—', 'wide pre'),
+      p.dislikes ? cell('Дургүй зүйл', p.dislikes, 'wide pre') : null,
       extra));
 }
 
@@ -1557,7 +1558,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=25'));
+    ({ AVATARS: list } = await import('./avatars.js?v=26'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;
@@ -1645,6 +1646,16 @@ function profileForm(p) {
   const fWishes = field('Hint', wishes);
   fWishes.append(counter);
 
+  // Дургүй зүйл (заавал биш)
+  const dislikes = h('textarea', { class: 'input textarea', name: 'dislikes', rows: '3', maxlength: '500', placeholder: 'Юунд дургүй, ямар бэлэг авмааргүй байгаагаа бичээрэй (заавал биш)' });
+  dislikes.value = v.dislikes || '';
+  const dCounter = h('span', { class: 'counter' });
+  const updD = () => (dCounter.textContent = `${dislikes.value.length}/500`);
+  dislikes.addEventListener('input', updD);
+  updD();
+  const fDislikes = field('Дургүй зүйл', dislikes);
+  fDislikes.append(dCounter);
+
   const submit = h('button', { class: 'btn btn-primary', type: 'submit' }, p ? 'Хадгалах' : 'Бүртгүүлэх');
   const formErr = h('p', { class: 'field-error form-error', role: 'alert' });
 
@@ -1663,7 +1674,7 @@ function profileForm(p) {
   consent.addEventListener('change', () => consent.checked && (consentErr.textContent = ''));
 
   const form = h('form', { class: 'form panel', novalidate: true },
-    fCode, fGender, h('div', { class: 'row-2' }, fLast, fFirst), fPhone, fWishes, fConsent, formErr,
+    fCode, fGender, h('div', { class: 'row-2' }, fLast, fFirst), fPhone, fWishes, fDislikes, fConsent, formErr,
     h('div', { class: 'actions' },
       p ? h('button', {
         class: 'btn btn-ghost', type: 'button', onclick: () => {
@@ -1684,6 +1695,7 @@ function profileForm(p) {
       firstName: first.value.trim(),
       phone: phone.value.trim(),
       wishes: wishes.value.trim(),
+      dislikes: dislikes.value.trim().slice(0, 500),
       consent: consent.checked,
     };
     if (needConsent && !consent.checked) consentErr.textContent = 'Үргэлжлүүлэхийн тулд зөвшөөрнө үү.';

@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay, isoDay, parseDay } from './ui.js?v=25';
-import * as fb from './fb.js?v=25';
-import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=25';
-import { fileToPages } from './media.js?v=25';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay, isoDay, parseDay } from './ui.js?v=26';
+import * as fb from './fb.js?v=26';
+import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=26';
+import { fileToPages } from './media.js?v=26';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
@@ -280,7 +280,7 @@ async function exportExcel(ctx, btn) {
   if (!users.length) return toast('Оролцогч алга байна.');
   btn.disabled = true;
   try {
-    const XLSX = await import('../vendor/xlsx.js?v=25');
+    const XLSX = await import('../vendor/xlsx.js?v=26');
     const byId = byIdMap(S);
     const assign = S.admin.assign;
     const active = S.config.state === 'active';
@@ -295,6 +295,7 @@ async function exportExcel(ctx, btn) {
         'Утас': u.phone,
         'Имэйл': u.email || '',
         'Hint': u.wishes || '',
+        'Дургүй зүйл': u.dislikes || '',
         'Монитагийн код': t ? t.studentCode : '',
         'Монитагийн овог нэр': t ? `${t.lastName} ${t.firstName}` : '',
         'Алтан монита': active && isGolden(assign, u.id) ? 'Тийм' : '',
