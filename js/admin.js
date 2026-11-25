@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay, isoDay, parseDay } from './ui.js?v=22';
-import * as fb from './fb.js?v=22';
-import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=22';
-import { fileToPages } from './media.js?v=22';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay, isoDay, parseDay } from './ui.js?v=23';
+import * as fb from './fb.js?v=23';
+import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=23';
+import { fileToPages } from './media.js?v=23';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
@@ -280,7 +280,7 @@ async function exportExcel(ctx, btn) {
   if (!users.length) return toast('Оролцогч алга байна.');
   btn.disabled = true;
   try {
-    const XLSX = await import('../vendor/xlsx.js?v=22');
+    const XLSX = await import('../vendor/xlsx.js?v=23');
     const byId = byIdMap(S);
     const assign = S.admin.assign;
     const active = S.config.state === 'active';
@@ -395,7 +395,14 @@ async function remove(ctx, u) {
   }
 }
 
-// Статистик: элссэн оноор (хүйсээр задлан), зураггүй оролцогчид.
+// Элссэн оноос курс: хичээлийн жил 9-р сараас эхэлнэ (2026–27 онд 26 он = 1-р курс, 25 он = 2-р курс).
+function courseOf(yy) {
+  const now = new Date();
+  const studyYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  return studyYear - (2000 + yy) + 1;
+}
+
+// Статистик: курсээр (хүйсээр задлан), зураггүй оролцогчид.
 function statsPanel(users, thumbs) {
   if (!users.length) return null;
   const byYear = {};
@@ -405,15 +412,17 @@ function statsPanel(users, thumbs) {
     r.total++;
     r[u.gender === 'male' ? 'male' : 'female']++;
   }
-  const years = Object.keys(byYear).map(Number).sort((a, b) => a - b);
+  // Курсээр эрэмбэлнэ: 1-р курс эхэнд.
+  const years = Object.keys(byYear).map(Number).sort((a, b) => b - a);
   const max = Math.max(...years.map((y) => byYear[y].total));
   const noPhoto = users.filter((u) => !thumbs[u.id]);
   return h('section', { class: 'panel stats-panel' },
     h('div', { class: 'stats-block' },
-      h('h2', { class: 'h-section' }, 'Элссэн оноор'),
+      h('h2', { class: 'h-section' }, 'Курсээр'),
       h('ul', { class: 'meter-list' }, years.map((y) => {
         const r = byYear[y];
-        const label = `${2000 + y} он`;
+        const c = courseOf(y);
+        const label = c >= 1 ? `${c}-р курс` : `${2000 + y} он`;
         const detail = `${r.total} хүн (эр ${r.male}, эм ${r.female})`;
         return h('li', { class: 'meter-row', title: `${label}: ${detail}` },
           h('span', { class: 'meter-name' }, label),
