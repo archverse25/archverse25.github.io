@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay, isoDay, parseDay } from './ui.js?v=28';
-import * as fb from './fb.js?v=28';
-import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=28';
-import { fileToPages } from './media.js?v=28';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay, isoDay, parseDay } from './ui.js?v=29';
+import * as fb from './fb.js?v=29';
+import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=29';
+import { fileToPages } from './media.js?v=29';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
@@ -280,7 +280,7 @@ async function exportExcel(ctx, btn) {
   if (!users.length) return toast('Оролцогч алга байна.');
   btn.disabled = true;
   try {
-    const XLSX = await import('../vendor/xlsx.js?v=28');
+    const XLSX = await import('../vendor/xlsx.js?v=29');
     const byId = byIdMap(S);
     const assign = S.admin.assign;
     const active = S.config.state === 'active';
@@ -749,8 +749,12 @@ function adminsPanel(ctx) {
 }
 
 // Урьдчилсан тайлан: ±2 жилийн дүрэм, алтан монитагийн тоо.
-function previewNotes(users) {
-  const ppl = users.map((u) => ({ uid: u.id, code: u.studentCode, gender: u.gender }));
+// Админууд бүх холболтыг хардаг тул алтан хосонд оруулахгүй.
+function adminIdSet(S) {
+  return new Set((S.admin.admins || []).map((a) => a.id));
+}
+function previewNotes(users, adminIds) {
+  const ppl = users.map((u) => ({ uid: u.id, code: u.studentCode, gender: u.gender, noGolden: adminIds.has(u.id) }));
   let m;
   try {
     m = makeMatching(ppl);
@@ -759,8 +763,10 @@ function previewNotes(users) {
   }
   const r = matchReport(ppl, m.assign, m.golden);
   const notes = [];
+  const adminsIn = users.filter((u) => adminIds.has(u.id)).length;
+  if (adminsIn) notes.push(`Админ ${adminsIn} хүн оролцож байгаа ч алтан монитад сонгогдохгүй.`);
   notes.push(`Алтан монита: ${r.golden}` + (r.golden < r.goldenWanted
-    ? ` (дүрмээр ${r.goldenWanted} байх ёстой ч хүйсийн харьцаа эсвэл оролцогчдын тооноос болж ${r.golden} үүснэ)`
+    ? ` (дүрмээр ${r.goldenWanted} байх ёстой ч хүйсийн харьцаа, админыг хассан эсвэл оролцогчдын тооноос болж ${r.golden} үүснэ)`
     : ''));
   if (r.yearIssues > 0) {
     notes.push(`${r.yearIssues} холболт ±2 жилийн дүрэмд багтахгүй: ойролцоо онтой хүн хүрэлцэхгүй тул хамгийн ойр онтой хүнтэй холбогдоно (хамгийн их зөрүү ${r.maxGap} жил).`);
@@ -779,7 +785,7 @@ async function start(ctx, btn) {
   const ok = await confirmDialog({
     title: 'Монитаг эхлүүлэх үү?',
     body: `${users.length} оролцогчийг холбоно. Эхэлсний дараа шинээр бүртгүүлэх, мэдээлэл засах боломжгүй.`,
-    extra: previewNotes(users),
+    extra: previewNotes(users, adminIdSet(S)),
     ok: 'Эхлүүлэх',
   });
   if (!ok) return;
@@ -789,7 +795,8 @@ async function start(ctx, btn) {
     await fb.lockRegistration();
     locked = true;
     const fresh = (await fb.freshUsers()).filter((u) => u.studentCode);
-    const ppl = fresh.map((u) => ({ uid: u.id, code: u.studentCode, gender: u.gender }));
+    const adminIds = adminIdSet(S);
+    const ppl = fresh.map((u) => ({ uid: u.id, code: u.studentCode, gender: u.gender, noGolden: adminIds.has(u.id) }));
     if (ppl.length < 3) throw new Error('Дор хаяж 3 оролцогч хэрэгтэй.');
     const m = makeMatching(ppl);
     const err = validateMatching(ppl, m.assign, m.golden);
