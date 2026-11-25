@@ -1,7 +1,7 @@
-import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay, isoDay, parseDay } from './ui.js?v=29';
-import * as fb from './fb.js?v=29';
-import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=29';
-import { fileToPages } from './media.js?v=29';
+import { h, svg, icons, toast, confirmDialog, openDialog, shortName, fullName, fmtDate, toMillis, errText, normDay, nextIsoDay, isoDay, parseDay } from './ui.js?v=30';
+import * as fb from './fb.js?v=30';
+import { makeMatching, validateMatching, validateCycle, matchReport, planRemoval, plannedGoldenCount, yearOf, isGolden, giverOf } from './matching.js?v=30';
+import { fileToPages } from './media.js?v=30';
 
 export function startAdminSubs(S, render, loud) {
   fb.ensureConfig().catch(loud('config'));
@@ -119,7 +119,7 @@ function reminders(S) {
     if (c.finalDay && c.voting === 'closed') out.push({ text: 'Монита дууссан бол хувийн мэдээллийн бодлогын дагуу оролцогчдын мэдээллийг устгаарай.', go: 'monita', label: 'Устгах хэсэг рүү' });
     if (!c.adminLocked) out.push({ text: 'Админ код нээлттэй байна. Бүх админ нэмэгдсэн бол хаагаарай.', go: 'monita', label: 'Админууд' });
   }
-  const recent = (S.admin.errors || []).filter((e) => now - toMillis(e.at) < 86400000).length;
+  const recent = (S.admin.errors || []).filter((e) => now - toMillis(e.at) < 86400000 && !isForeignError(e)).length;
   if (recent) out.push({ text: `Сүүлийн 24 цагт ${recent} алдаа бүртгэгдсэн.`, go: 'errors', label: 'Алдаа харах' });
   return out;
 }
@@ -154,6 +154,10 @@ function deviceOf(ua) {
   const br = /Instagram/.test(ua) ? 'Instagram' : /FBAN|FBAV|Messenger/.test(ua) ? 'Facebook' : /Edg\//.test(ua) ? 'Edge' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /Firefox|FxiOS/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'Хөтөч';
   return `${os}, ${br}`;
 }
+// Өөр домэйны скриптийн "Script error." — дэлгэрэнгүйгүй, сайтын код биш.
+function isForeignError(e) {
+  return /^script error\.?$/i.test(String(e.msg || '').trim());
+}
 function errorsSection(ctx) {
   const { S } = ctx;
   const byId = byIdMap(S);
@@ -182,6 +186,9 @@ function errorsSection(ctx) {
             h('span', null, deviceOf(e.ua || '')),
             h('span', null, `${e.page || ''} v${e.v || '?'}`)),
           h('p', { class: 'error-msg' }, e.msg || '—'),
+          isForeignError(e)
+            ? h('p', { class: 'muted small' }, 'Өөр домэйны скрипт (Google нэвтрэлт эсвэл утасны браузер)-ээс ирсэн алдаа. Сайтын кодын алдаа биш бөгөөд оролцогчийн мэдээлэлд нөлөөлөхгүй. Устгаж болно.')
+            : null,
           h('p', { class: 'muted small' }, [e.where, e.code].filter(Boolean).join(', ')),
           h('button', {
             class: 'icon-btn', type: 'button', 'aria-label': 'Устгах', onclick: () => fb.deleteError(e.id).catch((er) => toast(errText(er), 'error')),
@@ -280,7 +287,7 @@ async function exportExcel(ctx, btn) {
   if (!users.length) return toast('Оролцогч алга байна.');
   btn.disabled = true;
   try {
-    const XLSX = await import('../vendor/xlsx.js?v=29');
+    const XLSX = await import('../vendor/xlsx.js?v=30');
     const byId = byIdMap(S);
     const assign = S.admin.assign;
     const active = S.config.state === 'active';

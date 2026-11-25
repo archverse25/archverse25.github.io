@@ -1,10 +1,10 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, WINTER_SCENE, ensureMotifSprite, motif, setMotif, burst, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay, parseDay, fmtDay, fmtMoney,
   toMillis, errText,
-} from './ui.js?v=29';
-import * as fb from './fb.js?v=29';
-import { adminContent, startAdminSubs } from './admin.js?v=29';
-import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=29';
+} from './ui.js?v=30';
+import * as fb from './fb.js?v=30';
+import { adminContent, startAdminSubs } from './admin.js?v=30';
+import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=30';
 
 // ---------- Төлөв ----------
 const S = {
@@ -125,7 +125,11 @@ function signOutNow() {
   return fb.logOut();
 }
 document.addEventListener('monita:error', (ev) => reportError('харагдсан алдаа', ev.detail));
+// "Script error." нь өөр домэйны скрипт (Google нэвтрэлт, браузерын өргөтгөл)-ээс ирдэг,
+// дэлгэрэнгүйгүй тул засах боломжгүй. Сайтын өөрийн кодын алдаа файл, мөрийн дугаартай ирнэ.
+const isForeignScriptError = (ev) => !ev.error && !ev.filename && /^script error\.?$/i.test(String(ev.message || '').trim());
 window.addEventListener('error', (ev) => {
+  if (isForeignScriptError(ev)) return;
   const e = ev.error || {};
   reportError('скрипт', { raw: (e.message || ev.message || '') + (ev.filename ? ` @${ev.filename.split('/').pop()}:${ev.lineno}` : ''), code: e.code });
 });
@@ -1643,7 +1647,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=29'));
+    ({ AVATARS: list } = await import('./avatars.js?v=30'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;
