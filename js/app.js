@@ -1,10 +1,10 @@
 import {
   h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, motif, setMotif, burst, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay, parseDay, fmtDay, fmtMoney,
   toMillis, errText,
-} from './ui.js?v=24';
-import * as fb from './fb.js?v=24';
-import { adminContent, startAdminSubs } from './admin.js?v=24';
-import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=24';
+} from './ui.js?v=25';
+import * as fb from './fb.js?v=25';
+import { adminContent, startAdminSubs } from './admin.js?v=25';
+import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=25';
 
 // ---------- Төлөв ----------
 const S = {
@@ -161,7 +161,7 @@ function openPrivacy() {
       h('p', null, 'Google-ийн Firebase үйлчилгээнд хадгалагдана. Монита явагдаж байх үед админ алдаанаас сэргийлж нөөц хуулбар татаж болно. Монита дууссаны дараа админ оролцогчдын бүх мэдээлэл болон нөөц хуулбарыг устгана. Сайт таны Google нууц үгийг хэзээ ч харахгүй, хадгалахгүй.'),
       h('p', null, 'Сайтад алдаа гарвал засварлахын тулд алдааны тайлбар, хуудас, төхөөрөмж ба хөтчийн төрөл хадгалагдана.')),
     sec('Таны эрх',
-      h('p', null, 'Монита эхлэхээс өмнө мэдээллээ засах, Профайл хэсгээс бүртгэлээ өөрөө устгах боломжтой. Монита явагдаж байх үед устгуулах бол админд хандана уу.')),
+      h('p', null, 'Монита эхлэхээс өмнө мэдээллээ засах боломжтой. Бүртгэлээ устгуулах бол админд хандана уу.')),
     sec('Холбоо барих', h('p', null, contactLink()))),
   { title: 'Хувийн мэдээллийн бодлого', wide: true });
 }
@@ -1484,10 +1484,6 @@ function profileContent() {
         }, 'Мэдээлэл засах')));
   }
   right.push(installPanel());
-  right.push(h('section', { class: 'account' },
-    h('div', null, h('p', { class: 'muted small' }, 'Google бүртгэл'), h('p', { class: 'account-email' }, S.user.email)),
-    h('button', { class: 'btn btn-ghost', type: 'button', onclick: () => signOutNow() }, svg(icons.logout), 'Гарах')));
-  if (S.config.state === 'registration' && !S.editing) right.push(deleteAccountPanel());
   if (!S.isAdmin) right.push(keep('form:admin', adminCodeForm));
   const colL = keep('profile:left', () => h('div', { class: 'profile-col' }));
   const colR = keep('profile:right', () => h('div', { class: 'profile-col profile-side' }));
@@ -1497,41 +1493,6 @@ function profileContent() {
     h('header', { class: 'page-head' }, h('h1', { class: 'h-display' }, 'Профайл')),
     keep('profile:grid', () => h('div', { class: 'profile-grid' }, colL, colR)),
   ];
-}
-
-// Монита эхлэхээс өмнө бүртгэлээ өөрөө устгах.
-function deleteAccountPanel() {
-  const btn = h('button', { class: 'btn btn-small btn-danger', type: 'button' }, svg(icons.trash), 'Бүртгэлээ устгах');
-  btn.addEventListener('click', async () => {
-    const ok = await confirmDialog({
-      title: 'Бүртгэлээ устгах уу?',
-      body: 'Таны мэдээлэл, зураг бүрмөсөн устна. Дахин оролцох бол шинээр бүртгүүлнэ.',
-      ok: 'Устгах',
-      danger: true,
-    });
-    if (!ok) return;
-    btn.disabled = true;
-    try {
-      const code = S.profile && S.profile.studentCode;
-      await fb.deleteMyAccount(S.user.uid, code);
-      try {
-        localStorage.removeItem('monita:thumb:' + S.user.uid);
-      } catch (_) {
-        /* */
-      }
-      toast('Бүртгэл устлаа');
-    } catch (e) {
-      console.error(e);
-      const msg = e.code !== 'permission-denied' ? errText(e)
-        : S.config.state === 'registration' ? 'Одоогоор бүртгэл устгах боломжгүй байна. Админд хандана уу.'
-          : 'Монита эхэлсэн тул бүртгэл устгах боломжгүй.';
-      toast(msg, 'error');
-      btn.disabled = false;
-    }
-  });
-  return h('section', { class: 'account danger-zone' },
-    h('p', { class: 'muted small' }, 'Монита эхлэхээс өмнө бүртгэлээ устгах боломжтой.'),
-    btn);
 }
 
 function photoControl() {
@@ -1596,7 +1557,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=24'));
+    ({ AVATARS: list } = await import('./avatars.js?v=25'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;
