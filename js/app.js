@@ -1,10 +1,10 @@
 import {
-  h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, motif, setMotif, burst, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay, parseDay, fmtDay, fmtMoney,
+  h, svg, icons, GIFT_MINI, HERO_ART, DECO_ART, WINTER_SCENE, ensureMotifSprite, motif, setMotif, burst, toast, openDialog, confirmDialog, shortName, genderLabel, fmtPhone, fmtDate, initial, normDay, parseDay, fmtDay, fmtMoney,
   toMillis, errText,
-} from './ui.js?v=26';
-import * as fb from './fb.js?v=26';
-import { adminContent, startAdminSubs } from './admin.js?v=26';
-import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=26';
+} from './ui.js?v=27';
+import * as fb from './fb.js?v=27';
+import { adminContent, startAdminSubs } from './admin.js?v=27';
+import { fileToAvatar, thumbFromDataUrl, fileToGiftPhoto } from './media.js?v=27';
 
 // ---------- Төлөв ----------
 const S = {
@@ -591,6 +591,42 @@ const AMBIENT_MIX = {
   admin: ['snow', 'spark', 'heart'],
 };
 
+// ---------- Том дүрс: цастай үзэгдэл, хажуугийн мод ба цасан хүн ----------
+let sceneObserver = null;
+function winterScene(where) {
+  return keep('scene:' + where, () => {
+    ensureMotifSprite();
+    const el = svg(WINTER_SCENE, 'winter-scene');
+    // Үзэгдэл харагдаж байх үед хажуугийн мод, цасан хүн давхардахгүйн тулд бүдгэрнэ.
+    if ('IntersectionObserver' in window) {
+      sceneObserver = sceneObserver || new IntersectionObserver((entries) => {
+        const vis = entries.some((e) => e.isIntersecting);
+        document.body.classList.toggle('scene-in-view', vis);
+      }, { threshold: 0.15 });
+      sceneObserver.observe(el);
+    }
+    return el;
+  });
+}
+// Өргөн дэлгэц дээр хоёр талын зайд том гацуур мод, цасан хүн зогсоно.
+function ensureSideFigures() {
+  if (document.querySelector('.side-figures')) return;
+  ensureMotifSprite();
+  const NS = 'http://www.w3.org/2000/svg';
+  const fig = (id, cls) => {
+    const s = document.createElementNS(NS, 'svg');
+    s.setAttribute('class', 'side-figure ' + cls);
+    s.setAttribute('aria-hidden', 'true');
+    s.setAttribute('focusable', 'false');
+    const u = document.createElementNS(NS, 'use');
+    u.setAttribute('href', '#' + id);
+    s.appendChild(u);
+    return s;
+  };
+  const wrap = h('div', { class: 'side-figures', 'aria-hidden': 'true' }, fig('big-tree', 'sf-tree'), fig('snowman', 'sf-snowman'));
+  document.body.appendChild(wrap);
+}
+
 // ---------- Шинэ жилийн гэрэл ба цас ----------
 // Дээд цэсний доор унжсан өнгөт гэрлийн утас (хуудас солигдоход дахин зурагдахгүй).
 const GARLAND_COLORS = ['#A6FAFF', '#FF9EDB', '#FFD27A', '#C7A2FF', '#8FF5D0'];
@@ -634,6 +670,7 @@ let ambientEls = [];
 function ensureAmbient() {
   if (ambientEls.length) return;
   ensureSnow();
+  ensureSideFigures();
   const wide = matchMedia('(min-width: 1000px)').matches;
   const n = wide ? 16 : 8;
   const layer = h('div', { class: 'ambient', 'aria-hidden': 'true' });
@@ -696,7 +733,7 @@ function draw() {
   const wide = S.tab === 'admin' || (S.profile && (S.tab === 'home' || S.tab === 'profile'));
   screens.main.className = 'page' + (wide ? ' page-wide' : '') + (S.tab === screens.lastTab ? '' : ' page-enter');
   screens.lastTab = S.tab;
-  patch(screens.main, [tabContent(), siteFooter()]);
+  patch(screens.main, [tabContent(), S.tab === 'admin' ? null : winterScene('main'), siteFooter()]);
   const deco = keep('bg:deco', () => svg(DECO_ART, 'bg-deco'));
   const lights = garland();
   lights.classList.remove('on-top');
@@ -842,6 +879,7 @@ function landingContent() {
     keep('landing:signin', signInBlock),
     howToView(false),
     announcementsSection(),
+    winterScene('landing'),
     keep('landing:vertical', () => h('div', { class: 'vertical-mark', 'aria-hidden': 'true' }, 'MUST ARCHITECTURE')),
     siteFooter(),
   ];
@@ -1558,7 +1596,7 @@ function photoControl() {
 async function openAvatarPicker() {
   let list;
   try {
-    ({ AVATARS: list } = await import('./avatars.js?v=26'));
+    ({ AVATARS: list } = await import('./avatars.js?v=27'));
   } catch (e) {
     toast(errText(e, 'Зургуудыг ачаалж чадсангүй'), 'error');
     return;

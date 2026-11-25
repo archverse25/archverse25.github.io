@@ -313,6 +313,73 @@ const MOTIF_SPRITE = `<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
 <symbol id="m-snow" viewBox="0 0 24 24"><g fill="none" stroke="url(#mSpark)" stroke-width="1.6" stroke-linecap="round">${SNOW_ARMS}</g><circle cx="12" cy="12" r="1.6" fill="#fff"/></symbol>
 <symbol id="m-tree" viewBox="0 0 24 24"><path fill="url(#mTree)" d="M12 3 6.8 9.6h2.6L5.2 15h3.1L4 20.6h16L15.7 15h3.1l-4.2-5.4h2.6z"/><rect x="10.7" y="20.4" width="2.6" height="2.4" rx=".6" fill="#C98A5B"/><path fill="url(#mRibbon)" d="M12 .9l.75 1.5 1.65.25-1.2 1.15.3 1.65L12 4.7l-1.5.75.3-1.65-1.2-1.15 1.65-.25z"/><circle cx="10" cy="12.6" r=".9" fill="#FFB3E1"/><circle cx="14.2" cy="16.9" r=".9" fill="#FFE7A6"/><circle cx="9.2" cy="18.3" r=".8" fill="#B8FBFF"/></symbol>
 <symbol id="m-bauble" viewBox="0 0 24 24"><path d="M12 1.8v3" stroke="#FFE7A6" stroke-width="1.2" fill="none"/><rect x="9.6" y="4.4" width="4.8" height="2.6" rx=".8" fill="url(#mRibbon)"/><circle cx="12" cy="14.3" r="7.6" fill="url(#mBauble)"/><path d="M5.6 13.2c2.1 1.4 10.7 1.4 12.8 0" stroke="#fff" stroke-opacity=".55" stroke-width="1.1" fill="none"/><ellipse cx="9.3" cy="11.2" rx="1.6" ry="1" fill="#fff" opacity=".6" transform="rotate(-30 9.3 11.2)"/></symbol>
+<linearGradient id="bTree" gradientUnits="userSpaceOnUse" x1="0" y1="20" x2="0" y2="285"><stop offset="0" stop-color="#B4FFE6"/><stop offset=".35" stop-color="#43D3B2"/><stop offset=".7" stop-color="#2A92BC"/><stop offset="1" stop-color="#4B4FC0"/></linearGradient>
+<linearGradient id="bGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF2C4"/><stop offset=".6" stop-color="#FFC56B"/><stop offset="1" stop-color="#F29A4A"/></linearGradient>
+<radialGradient id="bSnowBall" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".65" stop-color="#EEF5FF"/><stop offset="1" stop-color="#C9DBFF"/></radialGradient>
+<linearGradient id="bCarrot" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFB46B"/><stop offset="1" stop-color="#FF7A3D"/></linearGradient>
+<linearGradient id="bScarf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9EDB"/><stop offset="1" stop-color="#B48BFF"/></linearGradient>
+<linearGradient id="bHat" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A6FAFF"/><stop offset="1" stop-color="#6F8BFF"/></linearGradient>
+<linearGradient id="bPot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B49CFF"/><stop offset="1" stop-color="#5A3FC0"/></linearGradient>
+<linearGradient id="bBract" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF9CC8"/><stop offset="1" stop-color="#E8406F"/></linearGradient>
+<linearGradient id="bBoxA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B8FBFF"/><stop offset="1" stop-color="#6F8BFF"/></linearGradient>
+<linearGradient id="bBoxB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFC2E6"/><stop offset="1" stop-color="#B48BFF"/></linearGradient>
+<symbol id="big-tree" viewBox="0 0 200 300">
+  <rect x="87" y="258" width="26" height="34" rx="5" fill="#9A6A4F"/>
+  <path fill="url(#bTree)" d="M100 128 179 260Q100 282 21 260Z"/>
+  <path fill="url(#bTree)" d="M100 76 162 196Q100 214 38 196Z"/>
+  <path fill="url(#bTree)" d="M100 30 140 130Q100 144 60 130Z"/>
+  <g fill="#F4FBFF" fill-opacity=".92">
+    <path d="M23 258Q38 270 54 262Q70 273 86 264Q100 271 114 264Q130 273 146 262Q162 270 177 258Q100 282 23 258Z"/>
+    <path d="M40 194Q53 204 66 198Q80 207 94 200Q108 207 122 199Q136 206 148 198Q155 202 160 194Q100 214 40 194Z"/>
+    <path d="M62 128Q72 137 82 132Q92 139 102 133Q114 139 124 132Q132 136 138 128Q100 144 62 128Z"/>
+  </g>
+  <g fill="none" stroke="url(#bGold)" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="0.1 9">
+    <path d="M70 112Q100 128 132 108"/><path d="M52 178Q100 202 150 174"/><path d="M36 238Q100 262 166 234"/>
+  </g>
+  <circle cx="68" cy="158" r="7.5" fill="#FF7EC4"/><circle cx="134" cy="150" r="7" fill="#7CF6FF"/><circle cx="100" cy="216" r="8" fill="url(#bGold)"/>
+  <circle cx="56" cy="232" r="7.5" fill="#B48BFF"/><circle cx="146" cy="226" r="7.5" fill="#FF7EC4"/><circle cx="90" cy="100" r="6" fill="#7CF6FF"/>
+  <circle cx="116" cy="168" r="6" fill="#FFE7A6"/><circle cx="118" cy="244" r="6.5" fill="#7CF6FF"/>
+  <g fill="#fff" fill-opacity=".6"><circle cx="65.5" cy="155.5" r="2"/><circle cx="131.5" cy="147.5" r="2"/><circle cx="97" cy="213" r="2.2"/><circle cx="53.5" cy="229.5" r="2"/><circle cx="143.5" cy="223.5" r="2"/></g>
+  <path fill="url(#bGold)" d="M100.0,5.0 L104.7,17.5 L118.1,18.1 L107.6,26.5 L111.2,39.4 L100.0,32.0 L88.8,39.4 L92.4,26.5 L81.9,18.1 L95.3,17.5Z"/>
+</symbol>
+<symbol id="snowman" viewBox="0 0 180 240">
+  <ellipse cx="90" cy="232" rx="62" ry="7" fill="#9FB6FF" fill-opacity=".35"/>
+  <g stroke="#8A5A44" stroke-width="4" stroke-linecap="round" fill="none">
+    <path d="M58 104 16 78M30 87 22 70M36 92 20 96"/><path d="M122 104 164 76M150 86 158 69M144 91 160 94"/>
+  </g>
+  <circle cx="90" cy="182" r="52" fill="url(#bSnowBall)"/>
+  <circle cx="90" cy="110" r="38" fill="url(#bSnowBall)"/>
+  <circle cx="90" cy="54" r="28" fill="url(#bSnowBall)"/>
+  <path fill="url(#bScarf)" d="M60 80Q90 94 120 80L121 90Q90 104 59 90Z"/>
+  <path fill="url(#bScarf)" d="M103 88 112 126 124 122 116 86Z"/>
+  <path d="M107 98 118 96M109 108 120 106M111 117 122 115" stroke="#A6FAFF" stroke-width="2.2" stroke-linecap="round"/>
+  <path fill="url(#bHat)" d="M64 40Q63 12 90 10Q117 12 116 40Z"/>
+  <rect x="61" y="34" width="58" height="10" rx="5" fill="#8FC2FF"/>
+  <circle cx="90" cy="9" r="8" fill="#FFFFFF"/>
+  <g fill="#3A2466"><circle cx="80" cy="49" r="3.3"/><circle cx="100" cy="49" r="3.3"/>
+    <circle cx="78" cy="65" r="1.8"/><circle cx="84" cy="68.5" r="1.8"/><circle cx="90" cy="69.5" r="1.8"/><circle cx="96" cy="68.5" r="1.8"/><circle cx="102" cy="65" r="1.8"/>
+    <circle cx="90" cy="104" r="4"/><circle cx="90" cy="120" r="4"/><circle cx="90" cy="168" r="4.6"/><circle cx="90" cy="190" r="4.6"/></g>
+  <path fill="url(#bCarrot)" d="M90 55 116 62 90 63Z"/>
+  <g fill="#FF7EC4" fill-opacity=".35"><circle cx="73" cy="58" r="4.5"/><circle cx="107" cy="58" r="4.5"/></g>
+</symbol>
+<symbol id="poinsettia" viewBox="0 0 120 140">
+  <g fill="#3FC8A8"><ellipse cx='60' cy='30' rx='9' ry='20' transform='rotate(15 60 58)'/><ellipse cx='60' cy='30' rx='9' ry='20' transform='rotate(75 60 58)'/><ellipse cx='60' cy='30' rx='9' ry='20' transform='rotate(135 60 58)'/><ellipse cx='60' cy='30' rx='9' ry='20' transform='rotate(195 60 58)'/><ellipse cx='60' cy='30' rx='9' ry='20' transform='rotate(255 60 58)'/><ellipse cx='60' cy='30' rx='9' ry='20' transform='rotate(315 60 58)'/></g>
+  <g fill="url(#bBract)"><path d='M60 58C52 47 53 31 60 19C67 31 68 47 60 58Z' transform='rotate(0 60 58)'/><path d='M60 58C52 47 53 31 60 19C67 31 68 47 60 58Z' transform='rotate(60 60 58)'/><path d='M60 58C52 47 53 31 60 19C67 31 68 47 60 58Z' transform='rotate(120 60 58)'/><path d='M60 58C52 47 53 31 60 19C67 31 68 47 60 58Z' transform='rotate(180 60 58)'/><path d='M60 58C52 47 53 31 60 19C67 31 68 47 60 58Z' transform='rotate(240 60 58)'/><path d='M60 58C52 47 53 31 60 19C67 31 68 47 60 58Z' transform='rotate(300 60 58)'/></g>
+  <g fill="#FF6FA8"><path d='M60 58C55 50 55 40 60 32C65 40 65 50 60 58Z' transform='rotate(30 60 58)'/><path d='M60 58C55 50 55 40 60 32C65 40 65 50 60 58Z' transform='rotate(90 60 58)'/><path d='M60 58C55 50 55 40 60 32C65 40 65 50 60 58Z' transform='rotate(150 60 58)'/><path d='M60 58C55 50 55 40 60 32C65 40 65 50 60 58Z' transform='rotate(210 60 58)'/><path d='M60 58C55 50 55 40 60 32C65 40 65 50 60 58Z' transform='rotate(270 60 58)'/><path d='M60 58C55 50 55 40 60 32C65 40 65 50 60 58Z' transform='rotate(330 60 58)'/></g>
+  <g fill="#FFD27A"><circle cx='64.0' cy='58.0' r='2.2'/><circle cx='61.2' cy='61.8' r='2.2'/><circle cx='56.8' cy='60.4' r='2.2'/><circle cx='56.8' cy='55.6' r='2.2'/><circle cx='61.2' cy='54.2' r='2.2'/></g>
+  <rect x="28" y="86" width="64" height="11" rx="4" fill="#C2AEFF"/>
+  <path fill="url(#bPot)" d="M33 97H87L80 136H40Z"/>
+</symbol>
+<symbol id="giftbox-a" viewBox="0 0 60 56">
+  <rect x="6" y="22" width="48" height="32" rx="4" fill="url(#bBoxA)"/><rect x="3" y="14" width="54" height="11" rx="3" fill="url(#bBoxA)"/>
+  <rect x="26" y="14" width="8" height="40" fill="url(#bGold)"/>
+  <path fill="url(#bGold)" d="M30 14C25 3 13 2 13 9 13 14 22 15 30 14ZM30 14C35 3 47 2 47 9 47 14 38 15 30 14Z"/>
+</symbol>
+<symbol id="giftbox-b" viewBox="0 0 60 56">
+  <rect x="6" y="22" width="48" height="32" rx="4" fill="url(#bBoxB)"/><rect x="3" y="14" width="54" height="11" rx="3" fill="url(#bBoxB)"/>
+  <rect x="26" y="14" width="8" height="40" fill="#FFFFFF" fill-opacity=".9"/>
+  <path fill="#FFFFFF" fill-opacity=".92" d="M30 14C25 3 13 2 13 9 13 14 22 15 30 14ZM30 14C35 3 47 2 47 9 47 14 38 15 30 14Z"/>
+</symbol>
 <symbol id="m-spark" viewBox="0 0 24 24"><path fill="url(#mSpark)" d="M12 2.5c.6 4.4 2.4 7 7.6 9.5-5.2 2.5-7 5.1-7.6 9.5-.6-4.4-2.4-7-7.6-9.5 5.2-2.5 7-5.1 7.6-9.5z"/></symbol>
 </svg>`;
 let spriteReady = false;
@@ -367,4 +434,27 @@ export function burst(anchor, { kinds = ['heart', 'snow', 'gift', 'flower', 'bau
   }
   document.body.appendChild(layer);
   setTimeout(() => layer.remove(), 1500);
+}
+
+// Цастай үзэгдэл: гацуур мод, цасан хүн, цэцэг (пуансеттиа), бэлгийн хайрцаг.
+export const WINTER_SCENE = `<svg class="scene-svg" viewBox="0 0 1200 240" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
+<defs><linearGradient id="sGround" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#C6D6FF"/></linearGradient></defs>
+<g class="scene-stars" fill="#fff">
+  <path transform="translate(140 60)" d="M0 -6C.4 -2 1.6 -.6 6 0 1.6 .6 .4 2 0 6-.4 2-1.6 .6-6 0-1.6-.6-.4-2 0-6Z"/><path transform="translate(360 30) scale(.7)" d="M0 -6C.4 -2 1.6 -.6 6 0 1.6 .6 .4 2 0 6-.4 2-1.6 .6-6 0-1.6-.6-.4-2 0-6Z"/><path transform="translate(820 44)" d="M0 -6C.4 -2 1.6 -.6 6 0 1.6 .6 .4 2 0 6-.4 2-1.6 .6-6 0-1.6-.6-.4-2 0-6Z"/>
+  <path transform="translate(1040 70) scale(.8)" d="M0 -6C.4 -2 1.6 -.6 6 0 1.6 .6 .4 2 0 6-.4 2-1.6 .6-6 0-1.6-.6-.4-2 0-6Z"/><path transform="translate(620 20) scale(.6)" d="M0 -6C.4 -2 1.6 -.6 6 0 1.6 .6 .4 2 0 6-.4 2-1.6 .6-6 0-1.6-.6-.4-2 0-6Z"/><path transform="translate(240 110) scale(.5)" d="M0 -6C.4 -2 1.6 -.6 6 0 1.6 .6 .4 2 0 6-.4 2-1.6 .6-6 0-1.6-.6-.4-2 0-6Z"/>
+</g>
+<path fill="#DCE7FF" fill-opacity=".45" d="M0 206C150 186 260 198 380 202 520 208 640 188 760 196 900 206 1020 188 1200 198V240H0Z"/>
+<use href="#poinsettia" x="60" y="120" width="80" height="94"/>
+<use href="#giftbox-a" x="150" y="174" width="48" height="45"/><use href="#giftbox-b" x="192" y="186" width="36" height="34"/>
+<use href="#big-tree" x="276" y="110" width="70" height="105"/>
+<use href="#big-tree" x="420" y="-6" width="148" height="222"/>
+<use href="#snowman" x="632" y="40" width="132" height="176"/>
+<use href="#giftbox-b" x="790" y="178" width="46" height="43"/><use href="#giftbox-a" x="832" y="188" width="36" height="34"/>
+<use href="#poinsettia" x="930" y="124" width="74" height="88"/>
+<use href="#big-tree" x="1060" y="96" width="80" height="120"/>
+<path fill="url(#sGround)" d="M0 220C200 204 320 214 460 216 620 218 720 204 860 212 980 218 1080 208 1200 214V240H0Z"/>
+<g fill="#fff" fill-opacity=".8"><circle cx="120" cy="228" r="1.5"/><circle cx="380" cy="230" r="1.2"/><circle cx="700" cy="232" r="1.4"/><circle cx="980" cy="229" r="1.2"/></g>
+</svg>`;
+export function ensureMotifSprite() {
+  ensureSprite();
 }
